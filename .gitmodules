@@ -1,0 +1,6 @@
+[submodule "TimeCampus-Backend"]
+	path = TimeCampus-Backend
+	url = git@github.com:BUAA2026SE-404NotFound/TimeCampus-Backend.git
+[submodule "TimeCampus-Portal"]
+	path = TimeCampus-Portal
+	url = git@github.com:BUAA2026SE-404NotFound/TimeCampus-Portal.git
