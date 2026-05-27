@@ -25,10 +25,12 @@ www.timecampus.asia {
 		reverse_proxy backend:8080
 	}
 
-	root * /srv/portal
-	import common_static_headers
-	try_files {path} /index.html
-	file_server
+	handle {
+		root * /srv/portal
+		import common_static_headers
+		try_files {path} /index.html
+		file_server
+	}
 }
 
 admin.timecampus.asia {
@@ -38,10 +40,12 @@ admin.timecampus.asia {
 		reverse_proxy backend:8080
 	}
 
-	root * /srv/portal
-	import common_static_headers
-	try_files {path} /index.html
-	file_server
+	handle {
+		root * /srv/portal
+		import common_static_headers
+		try_files {path} /index.html
+		file_server
+	}
 }
 
 api.timecampus.asia {

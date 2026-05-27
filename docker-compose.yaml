@@ -5,6 +5,8 @@ services:
     build:
       context: ./TimeCampus-Backend
       dockerfile: Dockerfile
+      args:
+        MAVEN_OPTS: ${BACKEND_BUILD_MAVEN_OPTS:-}
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SERVER_PORT: 8080
@@ -15,7 +17,7 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       REDIS_DATABASE: ${REDIS_DATABASE:-0}
-      TIMECAMPUS_STORAGE_DIR: /data/storage
+      TIMECAMPUS_STORAGE_DIR: /home/ubuntu/cos
       TIMECAMPUS_MAX_FILE_SIZE_MB: ${TIMECAMPUS_MAX_FILE_SIZE_MB:-10}
       TIMECAMPUS_MEDIA_FILE_TOKEN_TTL_SECONDS: ${TIMECAMPUS_MEDIA_FILE_TOKEN_TTL_SECONDS:-600}
       WECHAT_APPID: ${WECHAT_APPID}
@@ -26,9 +28,11 @@ services:
       CAP_SITEVERIFY_URL: ${CAP_SITEVERIFY_URL}
       CAP_SECRET: ${CAP_SECRET}
       JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms256m -Xmx768m}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./config:/app/config:ro
-      - ./data/storage:/data/storage
+      - /home/ubuntu/cos:/home/ubuntu/cos
     depends_on:
       valkey:
         condition: service_healthy
