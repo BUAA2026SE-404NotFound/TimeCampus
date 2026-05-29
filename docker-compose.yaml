@@ -1,100 +1,13 @@
 name: timecampus
 
 services:
-  backend:
-    build:
-      context: ./TimeCampus-Backend
-      dockerfile: Dockerfile
-      args:
-        MAVEN_OPTS: ${BACKEND_BUILD_MAVEN_OPTS:-}
-    environment:
-      SPRING_PROFILES_ACTIVE: prod
-      SERVER_PORT: 8080
-      MYSQL_URL: ${MYSQL_URL}
-      MYSQL_USERNAME: ${MYSQL_USERNAME}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      REDIS_HOST: valkey
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      REDIS_DATABASE: ${REDIS_DATABASE:-0}
-      TIMECAMPUS_STORAGE_DIR: /home/ubuntu/cos
-      TIMECAMPUS_MAX_FILE_SIZE_MB: ${TIMECAMPUS_MAX_FILE_SIZE_MB:-10}
-      TIMECAMPUS_MEDIA_FILE_TOKEN_TTL_SECONDS: ${TIMECAMPUS_MEDIA_FILE_TOKEN_TTL_SECONDS:-600}
-      WECHAT_APPID: ${WECHAT_APPID}
-      WECHAT_SECRET: ${WECHAT_SECRET}
-      TENCENT_MAP_KEY: ${TENCENT_MAP_KEY}
-      TENCENT_MAP_SK: ${TENCENT_MAP_SK}
-      CAP_ENABLED: ${CAP_ENABLED:-true}
-      CAP_SITEVERIFY_URL: ${CAP_SITEVERIFY_URL}
-      CAP_SECRET: ${CAP_SECRET}
-      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms256m -Xmx768m}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ./config:/app/config:ro
-      - /home/ubuntu/cos:/home/ubuntu/cos
-    depends_on:
-      valkey:
-        condition: service_healthy
-    expose:
-      - "8080"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/v1/health >/dev/null || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
-
   cap:
     image: tiago2/cap:latest
+    network_mode: host
     environment:
       ADMIN_KEY: ${CAP_ADMIN_KEY}
-      REDIS_URL: redis://valkey:6379
+      REDIS_URL: redis://127.0.0.1:6379
+      SERVER_HOSTNAME: 127.0.0.1
       CORS_ORIGIN: ${CAP_CORS_ORIGIN:-https://admin.timecampus.asia}
       RATELIMIT_IP_HEADER: x-forwarded-for
-    depends_on:
-      valkey:
-        condition: service_healthy
-    expose:
-      - "3000"
     restart: unless-stopped
-
-  valkey:
-    image: valkey/valkey:9-alpine
-    command: valkey-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy noeviction
-    volumes:
-      - valkey-data:/data
-    expose:
-      - "6379"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
-  caddy:
-    image: caddy:2.8-alpine
-    environment:
-      ACME_EMAIL: ${ACME_EMAIL}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./TimeCampus-Portal/dist:/srv/portal:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    depends_on:
-      backend:
-        condition: service_healthy
-      cap:
-        condition: service_started
-    restart: unless-stopped
-
-volumes:
-  valkey-data:
-  caddy-data:
-  caddy-config:
