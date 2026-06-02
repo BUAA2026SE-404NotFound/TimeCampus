@@ -75,6 +75,17 @@ pnpm run build
 pnpm run test:agents
 ```
 
+API smoke：
+
+```powershell
+node tools/agent-smoke.mjs --dry-run
+$env:TIMECAMPUS_API_BASE_URL="http://localhost:8080/api/v1"
+$env:TIMECAMPUS_ADMIN_TOKEN="<admin-token>"
+node tools/agent-smoke.mjs
+```
+
+未设置 `TIMECAMPUS_ADMIN_TOKEN` 时会跳过管理端 draft，只检查公开 walking-route。
+
 ## API Smoke
 
 ```http
