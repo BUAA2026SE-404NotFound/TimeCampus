@@ -12,10 +12,17 @@
 ## 本地启动
 
 ```powershell
-docker compose up -d qdrant
+.\tools\start-backend-mcp.ps1
 ```
 
-后端使用 `dev` profile，本地私钥写入被忽略的 `TimeCampus-Backend/timecampus-server/src/main/resources/application-dev.yaml`。
+默认不依赖 Docker/WSL/Qdrant，后端和 MCP 会直接启动，RAG 使用词法检索。后端使用 `dev` profile，本地私钥写入被忽略的 `TimeCampus-Backend/timecampus-server/src/main/resources/application-dev.yaml`。
+
+如需 Qdrant 向量检索，先恢复 Docker/WSL 并启动 Qdrant：
+
+```powershell
+docker compose up -d qdrant
+.\tools\start-backend-mcp.ps1 -WithQdrant
+```
 
 关键配置：
 
@@ -33,10 +40,14 @@ timecampus:
 spring:
   ai:
     vectorstore:
+      type: qdrant
       qdrant:
         host: localhost
         port: 6334
         collection-name: timecampus_rag
+timecampus:
+  rag:
+    vector-enabled: true
 ```
 
 索引重建：
