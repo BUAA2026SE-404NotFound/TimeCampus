@@ -4,3 +4,6 @@
 [submodule "TimeCampus-Portal"]
 	path = TimeCampus-Portal
 	url = git@github.com:BUAA2026SE-404NotFound/TimeCampus-Portal.git
+[submodule "TimeCampus-Agent"]
+	path = TimeCampus-Agent
+	url = git@github.com:BUAA2026SE-404NotFound/TimeCampus-Agent.git
