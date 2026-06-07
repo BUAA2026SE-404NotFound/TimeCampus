@@ -9,7 +9,9 @@ RUN pnpm install --frozen-lockfile --dangerously-allow-all-builds
 
 COPY TimeCampus-Portal/ ./
 ARG VITE_TENCENT_MAP_KEY=
+ARG VITE_CAP_API_ENDPOINT=
 ENV VITE_TENCENT_MAP_KEY=${VITE_TENCENT_MAP_KEY}
+ENV VITE_CAP_API_ENDPOINT=${VITE_CAP_API_ENDPOINT}
 RUN pnpm build
 
 FROM caddy:2-alpine

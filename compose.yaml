@@ -137,6 +137,7 @@ services:
       dockerfile: Dockerfile.caddy
       args:
         VITE_TENCENT_MAP_KEY: ${VITE_TENCENT_MAP_KEY:-${TENCENT_MAP_KEY:-}}
+        VITE_CAP_API_ENDPOINT: ${VITE_CAP_API_ENDPOINT:-}
     dns:
       - 223.5.5.5
       - 1.1.1.1
