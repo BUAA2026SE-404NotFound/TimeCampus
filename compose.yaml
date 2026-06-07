@@ -30,6 +30,8 @@ services:
 
   ollama:
     image: ollama/ollama:latest
+    ports:
+      - "${OLLAMA_PORT:-127.0.0.1:11434}:11434"
     dns:
       - 223.5.5.5
       - 1.1.1.1
