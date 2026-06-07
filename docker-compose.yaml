@@ -1,25 +1,2 @@
-name: timecampus
-
-services:
-  qdrant:
-    image: qdrant/qdrant:v1.14.1
-    ports:
-      - "${QDRANT_HTTP_PORT:-6333}:6333"
-      - "${QDRANT_GRPC_PORT:-6334}:6334"
-    volumes:
-      - qdrant-data:/qdrant/storage
-    restart: unless-stopped
-
-  cap:
-    image: tiago2/cap:latest
-    network_mode: host
-    environment:
-      ADMIN_KEY: ${CAP_ADMIN_KEY}
-      REDIS_URL: redis://127.0.0.1:6379
-      SERVER_HOSTNAME: 127.0.0.1
-      CORS_ORIGIN: ${CAP_CORS_ORIGIN:-https://admin.timecampus.asia}
-      RATELIMIT_IP_HEADER: x-forwarded-for
-    restart: unless-stopped
-
-volumes:
-  qdrant-data:
+include:
+  - compose.yaml

@@ -1,0 +1,163 @@
+name: timecampus
+
+services:
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: >
+      sh -c 'if [ -n "$$REDIS_PASSWORD" ];
+      then exec valkey-server --appendonly yes --requirepass "$$REDIS_PASSWORD";
+      else exec valkey-server --appendonly yes;
+      fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      - valkey-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD}\" ]; then valkey-cli -a \"$${REDIS_PASSWORD}\" ping; else valkey-cli ping; fi"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.14.1
+    ports:
+      - "${QDRANT_HTTP_PORT:-127.0.0.1:6333}:6333"
+      - "${QDRANT_GRPC_PORT:-127.0.0.1:6334}:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    dns:
+      - 223.5.5.5
+      - 1.1.1.1
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  ollama-pull-all-minilm:
+    image: ollama/ollama:latest
+    dns:
+      - 223.5.5.5
+      - 1.1.1.1
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command: ["pull", "${OLLAMA_EMBEDDING_MODEL:-all-minilm}"]
+    depends_on:
+      ollama:
+        condition: service_started
+    restart: "no"
+
+  backend:
+    build:
+      context: ./TimeCampus-Backend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    dns:
+      - 223.5.5.5
+      - 1.1.1.1
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: ${MYSQL_URL:?MYSQL_URL is required}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USERNAME:?MYSQL_USERNAME is required}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      REDIS_HOST: valkey
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      SPRING_AI_VECTORSTORE_TYPE: qdrant
+      QDRANT_HOST: qdrant
+      QDRANT_GRPC_PORT: 6334
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-timecampus_rag_minilm}
+      QDRANT_INITIALIZE_SCHEMA: "true"
+      TIMECAMPUS_RAG_VECTOR_ENABLED: "true"
+      TIMECAMPUS_RAG_LEXICAL_FALLBACK_ENABLED: "true"
+      OLLAMA_EMBEDDING_ENABLED: "true"
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-all-minilm}
+      OLLAMA_EMBEDDING_DIMENSIONS: ${OLLAMA_EMBEDDING_DIMENSIONS:-384}
+      ZHIPU_EMBEDDING_ENABLED: "false"
+      DEEPSEEK_CHAT_ENABLED: ${DEEPSEEK_CHAT_ENABLED:-true}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_CHAT_ENDPOINT: ${DEEPSEEK_CHAT_ENDPOINT:-https://api.deepseek.com/}
+      DEEPSEEK_CHAT_MODEL: ${DEEPSEEK_CHAT_MODEL:-deepseek-chat}
+      TIMECAMPUS_MCP_ENABLED: ${TIMECAMPUS_MCP_ENABLED:-true}
+      TIMECAMPUS_MCP_AUTH_REQUIRED: ${TIMECAMPUS_MCP_AUTH_REQUIRED:-true}
+      TIMECAMPUS_MCP_TOKEN: ${TIMECAMPUS_MCP_TOKEN:?TIMECAMPUS_MCP_TOKEN is required}
+      TIMECAMPUS_STORAGE_DIR: /data/storage
+      TIMECAMPUS_MAX_FILE_SIZE_MB: ${TIMECAMPUS_MAX_FILE_SIZE_MB:-20}
+      TIMECAMPUS_MEDIA_FILE_TOKEN_TTL_SECONDS: ${TIMECAMPUS_MEDIA_FILE_TOKEN_TTL_SECONDS:-600}
+      CAP_ENABLED: ${CAP_ENABLED:-true}
+      CAP_SITEVERIFY_URL: ${CAP_SITEVERIFY_URL:-}
+      CAP_SECRET: ${CAP_SECRET:-}
+      WECHAT_APPID: ${WECHAT_APPID:-}
+      WECHAT_SECRET: ${WECHAT_SECRET:-}
+      TENCENT_MAP_KEY: ${TENCENT_MAP_KEY:-}
+      TENCENT_MAP_SK: ${TENCENT_MAP_SK:-}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-"-Xms256m -Xmx768m"}
+    volumes:
+      - ./data/storage:/data/storage
+    depends_on:
+      valkey:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      ollama-pull-all-minilm:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  cap:
+    image: tiago2/cap:latest
+    dns:
+      - 223.5.5.5
+      - 1.1.1.1
+    environment:
+      ADMIN_KEY: ${CAP_ADMIN_KEY:?CAP_ADMIN_KEY is required}
+      REDIS_URL: ${CAP_REDIS_URL:-redis://valkey:6379}
+      SERVER_HOSTNAME: 0.0.0.0
+      CORS_ORIGIN: ${CAP_CORS_ORIGIN:-https://admin.timecampus.asia}
+      RATELIMIT_IP_HEADER: x-forwarded-for
+    depends_on:
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped
+
+  caddy:
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+      args:
+        VITE_TENCENT_MAP_KEY: ${VITE_TENCENT_MAP_KEY:-${TENCENT_MAP_KEY:-}}
+    dns:
+      - 223.5.5.5
+      - 1.1.1.1
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL is required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      backend:
+        condition: service_started
+      cap:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  valkey-data:
+  qdrant-data:
+  ollama-data:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+
+FROM node:22-alpine AS portal-build
+WORKDIR /workspace/TimeCampus-Portal
+RUN corepack enable
+
+COPY TimeCampus-Portal/package.json TimeCampus-Portal/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --dangerously-allow-all-builds
+
+COPY TimeCampus-Portal/ ./
+ARG VITE_TENCENT_MAP_KEY=
+ENV VITE_TENCENT_MAP_KEY=${VITE_TENCENT_MAP_KEY}
+RUN pnpm build
+
+FROM caddy:2-alpine
+COPY Caddyfile /etc/caddy/Caddyfile
+COPY --from=portal-build /workspace/TimeCampus-Portal/dist /srv/portal
