@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Deploy TimeCampus compose stack over password SSH.
+"""Deploy the TimeCampus supporting compose stack over password SSH.
 
 The script reads DEPLOY_HOST, DEPLOY_USER and DEPLOY_PASSWORD from
-TimeCampus-Portal/.env, uploads a git-clean archive of this workspace, and runs
-docker compose on the server. It intentionally does not print secrets.
+TimeCampus-Portal/.env, uploads the root compose files and optional local
+root .env, and runs docker compose on the server. It intentionally does not
+print secrets.
 """
 
 from __future__ import annotations
@@ -12,7 +13,6 @@ import argparse
 import io
 from pathlib import Path
 import posixpath
-import subprocess
 import sys
 import tarfile
 import time
@@ -26,6 +26,7 @@ except ImportError as exc:  # pragma: no cover
 ROOT = Path(__file__).resolve().parents[1]
 PORTAL_ENV = ROOT / "TimeCampus-Portal" / ".env"
 REMOTE_DIR = "~/TimeCampus"
+COMPOSE_FILES = ("compose.yaml", "docker-compose.yaml", ".env.example")
 
 
 def read_dotenv(path: Path) -> dict[str, str]:
@@ -39,34 +40,12 @@ def read_dotenv(path: Path) -> dict[str, str]:
     return values
 
 
-def run_git(args: list[str], cwd: Path) -> list[str]:
-    output = subprocess.check_output(["git", *args], cwd=cwd, text=True, encoding="utf-8")
-    return [line for line in output.splitlines() if line.strip()]
-
-
-def git_tree_paths(repo: Path) -> list[str]:
-    output = subprocess.check_output(
-        ["git", "-c", "core.quotePath=false", "ls-tree", "-r", "-z", "--name-only", "HEAD"],
-        cwd=repo,
-    )
-    return [item.decode("utf-8") for item in output.split(b"\0") if item]
-
-
-def head_files(repo: Path, prefix: str = "") -> list[tuple[str, bytes]]:
-    files: list[tuple[str, bytes]] = []
-    for line in git_tree_paths(repo):
-        if not prefix and line in {"TimeCampus-Backend", "TimeCampus-Portal", "TimeCampus-Agent"}:
-            continue
-        data = subprocess.check_output(["git", "show", f"HEAD:{line}"], cwd=repo)
-        arcname = f"{prefix}{line}" if prefix else line
-        files.append((arcname, data))
-    return files
-
-
 def archive_files() -> list[tuple[str, bytes]]:
-    files = head_files(ROOT)
-    for submodule in ("TimeCampus-Backend", "TimeCampus-Portal", "TimeCampus-Agent"):
-        files.extend(head_files(ROOT / submodule, f"{submodule}/"))
+    files: list[tuple[str, bytes]] = []
+    for filename in COMPOSE_FILES:
+        path = ROOT / filename
+        if path.exists():
+            files.append((filename, path.read_bytes()))
     root_env = ROOT / ".env"
     if root_env.exists():
         files.append((".env", root_env.read_bytes()))
@@ -144,6 +123,7 @@ def main() -> int:
         sftp.close()
         remote_run(client, f"tar -xzf {remote_archive} -C {remote_dir}")
         remote_run(client, f"rm -f {remote_archive}")
+        remote_run(client, f"rm -f {remote_dir}/Caddyfile {remote_dir}/Dockerfile.caddy")
         sudo_prefix = "sudo -S -p ''"
         sudo_input = f"{password}\n"
         remote_run(client, f"{sudo_prefix} docker --version && {sudo_prefix} docker compose version", sudo_input * 2)
@@ -155,7 +135,7 @@ def main() -> int:
         if not args.skip_up:
             remote_run(
                 client,
-                f"cd {remote_dir} && {sudo_prefix} docker compose --env-file .env -f compose.yaml up -d --build",
+                f"cd {remote_dir} && {sudo_prefix} docker compose --env-file .env -f compose.yaml up -d",
                 sudo_input,
             )
             remote_run(

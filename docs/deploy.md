@@ -1,19 +1,19 @@
-# TimeCampus 根仓库部署
+# TimeCampus 生产部署说明
 
-根仓库负责生产编排：`TimeCampus-Portal` 在 Caddy 镜像构建阶段产出静态前端，`TimeCampus-Backend` 构建 Spring Boot 镜像，Caddy 统一暴露 HTTPS。Compose 还会部署 Qdrant、Ollama 和 Valkey，后端 MCP/RAG 默认使用 Ollama 的 `all-minilm` embedding 模型写入 `timecampus_rag_minilm` 集合。
+根仓库只负责生产依赖服务编排：Valkey、Cap、Qdrant、Ollama 和一次性 embedding 模型拉取任务。Web 入口使用服务器 Nginx；Backend 使用 jar + systemd；Portal 构建产物发布到 Nginx 静态目录。
 
 ## 域名路由
 
 ```text
-www.timecampus.asia          门户首页
+www.timecampus.asia          门户首页静态资源
 www.timecampus.asia/admin/*  308 跳转到 admin.timecampus.asia/*
-www.timecampus.asia/api/v1/* 兼容旧入口，反代到后端
-admin.timecampus.asia/*      管理端 SPA
-api.timecampus.asia/v1/*     API 新入口，Caddy 重写到后端 /api/v1/*
-cap.timecampus.asia/*        自托管 Cap Standalone
+www.timecampus.asia/api/v1/* 兼容旧入口，Nginx 反代到后端
+admin.timecampus.asia/*      管理端 SPA 静态资源
+api.timecampus.asia/v1/*     API 新入口，Nginx 反代到后端 /api/v1/*
+cap.timecampus.asia/*        Nginx 反代到 127.0.0.1:3000
 ```
 
-生产只暴露 Caddy 的 `80/443`。`backend:8080`、`cap:3000`、`valkey:6379`、`ollama:11434` 都只在 Compose 内网访问；Qdrant 默认只绑定服务器本机 `127.0.0.1:6333/6334`，用于排查和备份。
+生产公网入口只开放 Nginx `80/443`。Compose 服务默认只绑定服务器本机端口或 Docker 内网；后端 systemd 服务监听 `127.0.0.1:8080`。
 
 ## 首次准备
 
@@ -21,26 +21,25 @@ cap.timecampus.asia/*        自托管 Cap Standalone
 cd ~/TimeCampus
 git submodule update --init --recursive
 cp .env.example .env
-mkdir -p data/storage
 ```
 
-编辑 `.env`，填入数据库、微信、腾讯地图、Cap、DeepSeek、MCP token 等真实值。若 `REDIS_PASSWORD` 非空，`CAP_REDIS_URL` 也要带上同一个密码。`OLLAMA_EMBEDDING_MODEL=all-minilm` 对应 MiniLM 384 维 embedding，后端会以该维度初始化新的 Qdrant collection。
+根 `.env` 只填写 compose 依赖服务变量，例如 Valkey 密码、Qdrant/Ollama 本机端口和 Cap 管理密钥。后端数据库、MCP、DeepSeek、腾讯地图、微信、存储和 Cap secret 配置位于服务器 `~/app/config/application.yaml` 与 `~/app/config/application-prod.yaml`。
 
-## 启动服务
+## 启动依赖服务
 
 ```bash
 cd ~/TimeCampus
 docker compose --env-file .env -f compose.yaml config
-docker compose --env-file .env -f compose.yaml up -d --build
+docker compose --env-file .env -f compose.yaml up -d
 ```
 
-也可以从本机直接上传并启动，脚本会读取 `TimeCampus-Portal/.env` 中的 `DEPLOY_HOST`、`DEPLOY_USER`、`DEPLOY_PASSWORD`：
+也可以从本机同步根 compose 栈并启动：
 
 ```bash
 uv run --with paramiko python tools/deploy-compose.py
 ```
 
-Compose 首次启动会先拉起 Ollama，并执行一次 `ollama pull all-minilm`；后端会等待该一次性任务成功后启动。
+Compose 首次启动会拉起 Ollama，并执行一次 `ollama pull all-minilm`。
 
 ## Cap 初始化
 
@@ -50,41 +49,77 @@ Compose 首次启动会先拉起 Ollama，并执行一次 `ollama pull all-minil
 https://cap.timecampus.asia
 ```
 
-用 `.env` 的 `CAP_ADMIN_KEY` 登录，创建站点，记录 `site key` 和 `site secret`，然后更新：
+用 `.env` 的 `CAP_ADMIN_KEY` 登录，创建站点，记录 `site key` 和 `site secret`，然后更新后端生产配置：
 
-```env
-CAP_SITEVERIFY_URL=https://cap.timecampus.asia/<site-key>/siteverify
-CAP_SECRET=<site-secret>
+```yaml
+timecampus:
+  security:
+    cap:
+      enabled: true
+      site-verify-url: https://cap.timecampus.asia/<site-key>/siteverify
+      secret: <site-secret>
 ```
 
 重启后端：
 
 ```bash
-docker compose --env-file .env -f compose.yaml up -d backend
+sudo systemctl restart timecampus-backend
 ```
+
+## Backend 部署
+
+常态修改后，在 Backend 仓库使用部署脚本发布 jar。脚本在本地构建，然后通过 SSH 替换服务器 jar 并重启 systemd 服务，不依赖服务器代理下载 Maven 依赖。
+
+```bash
+cd TimeCampus-Backend
+bash deploy/scripts/deploy-backend.sh
+```
+
+Backend 配置继续从服务器 `~/app/config` 读取，避免把生产密钥写入仓库。
+
+## Portal 部署
+
+Portal 常态部署由 Portal 仓库 CI 或部署脚本完成：本地/CI 构建静态资源，通过 SSH 同步到 Nginx 静态目录。Portal 只保存前端可公开配置，例如腾讯地图 JS key 和 Cap site endpoint；不得保存 Cap secret。
 
 ## RAG 初始化
 
-后端启动后，通过 MCP 工具 `timecampus_rag_rebuild_vector_index` 从 MySQL 抽取 POI、媒体、评论和内容切块，写入 Qdrant。也可以先用 `timecampus_rag_search` 做小范围查询验证。
+后端启动后，通过 MCP 工具或管理端 Agent API 从 MySQL 抽取 POI、媒体、评论和内容规范，写入 Qdrant。
 
-当前部署默认使用：
+```text
+timecampus_rag_rebuild_vector_index
+```
 
-```env
-SPRING_AI_VECTORSTORE_TYPE=qdrant
-TIMECAMPUS_RAG_VECTOR_ENABLED=true
-OLLAMA_BASE_URL=http://ollama:11434
-OLLAMA_EMBEDDING_MODEL=all-minilm
-OLLAMA_EMBEDDING_DIMENSIONS=384
-QDRANT_COLLECTION=timecampus_rag_minilm
+当前生产默认使用：
+
+```yaml
+spring:
+  ai:
+    vectorstore:
+      type: qdrant
+timecampus:
+  rag:
+    vector-enabled: true
+  ai:
+    ollama:
+      embedding:
+        enabled: true
+        model: all-minilm
+        dimensions: 384
 ```
 
 ## 常用检查
 
 ```bash
 docker compose --env-file .env -f compose.yaml ps
-docker compose --env-file .env -f compose.yaml logs -f caddy
-docker compose --env-file .env -f compose.yaml logs -f backend
-curl -i https://api.timecampus.asia/v1/health
+docker compose --env-file .env -f compose.yaml logs -f cap
 docker compose --env-file .env -f compose.yaml exec ollama ollama list
-docker compose --env-file .env -f compose.yaml exec backend sh -lc 'wget -qO- http://127.0.0.1:8080/actuator/health'
+curl -i https://api.timecampus.asia/v1/health
+sudo systemctl status timecampus-backend --no-pager
+sudo journalctl -u timecampus-backend -n 100 --no-pager
+```
+
+根编排回归测试：
+
+```bash
+uv run --with pyyaml python -m unittest discover -s tests
 ```
