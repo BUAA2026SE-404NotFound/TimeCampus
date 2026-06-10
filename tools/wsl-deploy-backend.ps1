@@ -7,6 +7,10 @@ param(
     [string]$SpringProfiles = "dev,wsl",
     [string]$WslAppDir = "~/app",
     [int]$HealthTimeoutSeconds = 60,
+    [switch]$WithVectorRag,
+    [string]$OllamaEmbeddingModel = "all-minilm",
+    [int]$OllamaEmbeddingDimensions = 384,
+    [string]$QdrantCollection = "timecampus_rag_minilm",
     [switch]$SkipBuild,
     [switch]$NoStart
 )
@@ -84,6 +88,7 @@ if (($Action -eq "deploy") -and -not $jar) {
 
 $jarWsl = if ($jar) { ConvertTo-WslPath $jar.FullName } else { "" }
 $noStartValue = if ($NoStart) { "true" } else { "false" }
+$vectorRagValue = if ($WithVectorRag) { "true" } else { "false" }
 
 $bash = @'
 set -Eeuo pipefail
@@ -97,6 +102,10 @@ SERVICE_HOST="$6"
 SERVER_PORT="$7"
 HEALTH_TIMEOUT="$8"
 NO_START="$9"
+VECTOR_RAG_ENABLED="${10}"
+OLLAMA_MODEL="${11}"
+OLLAMA_DIMENSIONS="${12}"
+QDRANT_COLLECTION="${13}"
 
 expand_path() {
   case "$1" in
@@ -113,6 +122,10 @@ LOG_FILE="$LOG_DIR/backend.log"
 CONFIG_DIR="$APP_DIR/config"
 STORAGE_DIR="$APP_DIR/storage"
 APP_JAR="$APP_DIR/app.jar"
+VECTORSTORE_TYPE="none"
+if [ "$VECTOR_RAG_ENABLED" = "true" ]; then
+  VECTORSTORE_TYPE="qdrant"
+fi
 
 mkdir -p "$APP_DIR" "$CONFIG_DIR" "$STORAGE_DIR" "$LOG_DIR" "$APP_DIR/backup"
 
@@ -195,15 +208,23 @@ spring:
       port: \${REDIS_PORT:6379}
   ai:
     vectorstore:
+      type: \${SPRING_AI_VECTORSTORE_TYPE:${VECTORSTORE_TYPE}}
       qdrant:
         host: \${QDRANT_HOST:${SERVICE_HOST}}
         port: \${QDRANT_GRPC_PORT:6334}
+        collection-name: \${QDRANT_COLLECTION:${QDRANT_COLLECTION}}
+        initialize-schema: \${QDRANT_INITIALIZE_SCHEMA:true}
 
 timecampus:
   ai:
     ollama:
       embedding:
+        enabled: \${OLLAMA_EMBEDDING_ENABLED:${VECTOR_RAG_ENABLED}}
         base-url: \${OLLAMA_BASE_URL:http://${SERVICE_HOST}:11434}
+        model: \${OLLAMA_EMBEDDING_MODEL:${OLLAMA_MODEL}}
+        dimensions: \${OLLAMA_EMBEDDING_DIMENSIONS:${OLLAMA_DIMENSIONS}}
+  rag:
+    vector-enabled: \${TIMECAMPUS_RAG_VECTOR_ENABLED:${VECTOR_RAG_ENABLED}}
 YAML
 
   echo "Copied ${copied} config file(s) into $CONFIG_DIR"
@@ -328,7 +349,11 @@ try {
             $ServiceHost `
             "$ServerPort" `
             "$HealthTimeoutSeconds" `
-            $noStartValue
+            $noStartValue `
+            $vectorRagValue `
+            $OllamaEmbeddingModel `
+            "$OllamaEmbeddingDimensions" `
+            $QdrantCollection
     } -ErrorMessage "WSL backend deployment action '$Action' failed."
 } finally {
     Remove-Item $tempScript -Force -ErrorAction SilentlyContinue
