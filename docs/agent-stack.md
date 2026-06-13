@@ -1,30 +1,37 @@
 # TimeCampus Agent Stack
 
-本文只记录本地联调和验收要点。
+本文记录 Backend MCP/RAG、Agent CLI、管理端 Agent HTTP API 和游客路线 API 的本地联调与验收要点。
 
 ## 组成
 
-- 管理维护 Agent：Portal `/admin/ai-workbench`，调用后端 `/api/v1/admin/agent/draft`，用于 POI、影像、文案维护草案。
-- 游客导览 Agent：Portal `/campus-map`，读取公开 POI/影像数据，调用 `/api/v1/map/walking-route` 生成步行路线摘要。
-- MCP Server：Backend `/mcp`，通过 Spring AI 暴露 Tools、Resources、Prompts，给外部 agent 直接维护后台数据。
-- RAG：Backend 从 MySQL 的 `poi`、`media`、`comment` 和维护规范生成语料；优先走 Qdrant，缺少向量配置时回退词法检索。
+- Backend MCP Server：`/mcp`，通过 Spring AI 暴露 Tools、Resources、Prompts，给外部 Agent 维护 POI、影像、审核状态和展示文案。
+- Backend RAG：从 MySQL 的 `poi`、`media`、`comment` 和内置维护规范构建语料；优先走 Qdrant，缺少向量配置时回退词法检索。
+- 管理端 Agent HTTP API：`/api/v1/admin/agent/**`，提供 RAG 检索、上下文包、草案生成和向量索引重建。
+- TimeCampus-Agent CLI：独立 Python/LangChain 工作区，调用 Backend REST API 和 MCP。
+- 游客导览 API：`/api/v1/map/walking-route`，根据 2-8 个点位返回步行路线摘要。
+
+当前 Portal 管理端没有独立 AI Workbench 页面；前端需要接入 Agent 能力时，应调用 Backend `/api/v1/admin/agent/**`，并同步更新 Portal 路由和规格文档。
 
 ## 本地启动
+
+从根仓库启动 Backend API/MCP：
 
 ```powershell
 .\tools\start-backend-mcp.ps1
 ```
 
-默认不依赖 Docker/WSL/Qdrant，后端和 MCP 会直接启动，RAG 使用词法检索。后端使用 `dev` profile，本地私钥写入被忽略的 `TimeCampus-Backend/timecampus-server/src/main/resources/application-dev.yaml`。
+默认不依赖 Docker、WSL 或 Qdrant，后端使用 `dev` profile，RAG 使用词法检索。开发私钥写入被忽略的 `TimeCampus-Backend/timecampus-server/src/main/resources/application-dev.yaml`。
 
-如需 Qdrant 向量检索，先恢复 Docker/WSL 并启动 Qdrant：
+如需 Qdrant 向量检索，先启动 Qdrant，再用脚本开启向量配置：
 
 ```powershell
 docker compose up -d qdrant
 .\tools\start-backend-mcp.ps1 -WithQdrant
 ```
 
-关键配置：
+## Backend 配置
+
+常用配置：
 
 ```yaml
 timecampus:
@@ -32,11 +39,12 @@ timecampus:
     deepseek:
       chat:
         enabled: true
-        model: deepseek-v4-flash
-    zhipu:
+        model: deepseek-chat
+    ollama:
       embedding:
         enabled: true
-        model: embedding-3
+        model: all-minilm
+        dimensions: 384
 spring:
   ai:
     vectorstore:
@@ -50,12 +58,97 @@ timecampus:
     vector-enabled: true
 ```
 
-索引重建：
+生产 MCP 应开启鉴权：
+
+```env
+TIMECAMPUS_MCP_ENABLED=true
+TIMECAMPUS_MCP_AUTH_REQUIRED=true
+TIMECAMPUS_MCP_TOKEN=replace-with-a-long-random-token
+```
+
+## 索引重建
+
+管理端 HTTP API：
 
 ```http
 POST /api/v1/admin/agent/rag/rebuild-index
 Authorization: Bearer <admin-token>
+Content-Type: application/json
+
+{
+  "types": ["poi", "media", "comment", "guideline"],
+  "includePending": false,
+  "deleteExisting": true
+}
 ```
+
+MCP 工具：
+
+```text
+timecampus_rag_rebuild_vector_index
+```
+
+## Agent CLI
+
+准备：
+
+```powershell
+cd TimeCampus-Agent
+uv sync
+Copy-Item .env.example .env
+```
+
+常用命令：
+
+```powershell
+uv run timecampus-agent rag-search "主楼旧照"
+uv run timecampus-agent draft "为主楼补充面向游客的简介"
+uv run timecampus-agent ask "检索主楼资料并给出维护计划"
+uv run timecampus-agent mcp-tools
+uv run timecampus-agent route "主楼,39.981,116.34;图书馆,39.982,116.341"
+```
+
+## API Smoke
+
+管理端 RAG/草案：
+
+```http
+POST /api/v1/admin/agent/draft
+Authorization: Bearer <admin-token>
+Content-Type: application/json
+
+{
+  "task": "为主楼补充一版面向游客的简介",
+  "limit": 6,
+  "types": ["poi", "media", "guideline"],
+  "includePending": true
+}
+```
+
+游客步行路线：
+
+```http
+POST /api/v1/map/walking-route
+Content-Type: application/json
+
+{
+  "points": [
+    {"name": "主楼", "lat": 39.981, "lng": 116.34},
+    {"name": "图书馆", "lat": 39.982, "lng": 116.341}
+  ]
+}
+```
+
+根仓库脚本：
+
+```powershell
+node tools\agent-smoke.mjs --dry-run
+$env:TIMECAMPUS_API_BASE_URL="http://localhost:8080/api/v1"
+$env:TIMECAMPUS_ADMIN_TOKEN="<admin-token>"
+node tools\agent-smoke.mjs
+```
+
+未设置 `TIMECAMPUS_ADMIN_TOKEN` 时会跳过管理端 draft，只检查公开 walking-route。
 
 ## 质量门槛
 
@@ -82,46 +175,17 @@ Portal：
 
 ```powershell
 cd TimeCampus-Portal
-pnpm run build
-pnpm run test:agents
+pnpm typecheck
+pnpm lint
+pnpm build
 ```
 
-API smoke：
+Agent：
 
 ```powershell
-node tools/agent-smoke.mjs --dry-run
-$env:TIMECAMPUS_API_BASE_URL="http://localhost:8080/api/v1"
-$env:TIMECAMPUS_ADMIN_TOKEN="<admin-token>"
-node tools/agent-smoke.mjs
-```
-
-未设置 `TIMECAMPUS_ADMIN_TOKEN` 时会跳过管理端 draft，只检查公开 walking-route。
-
-## API Smoke
-
-```http
-POST /api/v1/admin/agent/draft
-Authorization: Bearer <admin-token>
-Content-Type: application/json
-
-{
-  "task": "为主楼补充一版面向游客的简介",
-  "limit": 6,
-  "types": ["poi", "media", "guideline"],
-  "includePending": true
-}
-```
-
-```http
-POST /api/v1/map/walking-route
-Content-Type: application/json
-
-{
-  "points": [
-    {"name": "主楼", "lat": 39.981, "lng": 116.34},
-    {"name": "图书馆", "lat": 39.982, "lng": 116.341}
-  ]
-}
+cd TimeCampus-Agent
+uv run pytest
+uv run ruff check .
 ```
 
 ## 维护约束
@@ -129,4 +193,4 @@ Content-Type: application/json
 - Agent 写入前必须先检索 RAG，再读取具体 resource/tool 的当前值。
 - POI/影像文案优先用 copy-only 工具。
 - 删除、版权不明、年份地点不明的任务必须交给人工确认。
-- 前端只暴露腾讯地图 JS key，不暴露 SK、DeepSeek key、GLM key。
+- 前端只暴露腾讯地图 JS key，不暴露 SK、DeepSeek key、GLM key、Cap secret。
