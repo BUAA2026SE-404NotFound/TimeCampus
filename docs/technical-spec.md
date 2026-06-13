@@ -69,7 +69,7 @@ TimeCampus/
 
 - 渲染门户首页、项目详情、小程序说明和公开校园地图。
 - 渲染 Web 管理端，调用 Backend 管理端 API。
-- 根据 `VITE_ADMIN_DOMAIN`、`VITE_PORTAL_DOMAIN` 和 `VITE_ADMIN_REDIRECT` 处理生产域名跳转。
+- 根据 `VITE_ADMIN_DOMAIN`、`VITE_PORTAL_DOMAIN` 和 `VITE_ADMIN_REDIRECT` 处理管理端域名跳转。
 - 通过 `src/api/request.ts` 统一处理 `/api/v1` 前缀、JSON 请求、FormData 和管理员 token。
 
 关键目录：
@@ -89,6 +89,7 @@ src/
 - `App.tsx` 使用浏览器 History API 管理轻量路由。
 - `/campus-map` 通过 `React.lazy` 延迟加载。
 - `/admin/*` 在管理端域名下转换为无 `/admin` 前缀的浏览器路径，在内部仍映射到管理端页面。
+- 生产主站访问 `/admin`、`/admin/*`、`/login` 和 `/register` 时跳转到管理端域名；`VITE_ADMIN_REDIRECT=false` 只用于本地预览。
 - 本地 Vite 开发服务器代理 `/api` 到 `http://localhost:8080`。
 
 环境变量：
@@ -100,7 +101,7 @@ src/
 | `VITE_CAP_API_ENDPOINT` | Cap site endpoint，不能包含 secret |
 | `VITE_ADMIN_DOMAIN` | 管理端生产域名 |
 | `VITE_PORTAL_DOMAIN` | 门户生产域名 |
-| `VITE_ADMIN_REDIRECT` | 是否把管理端路由强制跳转到管理端域名 |
+| `VITE_ADMIN_REDIRECT` | 是否把管理端路由强制跳转到管理端域名，本地预览可设为 `false` |
 
 质量命令：
 

@@ -43,7 +43,7 @@ TimeCampus 是面向校园历史影像浏览、点位共创和运营维护的系
 - `/project-info` 展示项目背景、价值和相关介绍。
 - `/mini-program` 展示微信小程序说明与入口素材。
 - `/campus-map` 独立加载公开校园地图，进入该页后再加载腾讯地图脚本和卫星瓦片，避免拖慢首页首屏。
-- `/admin`、`/admin/*` 作为 Web 管理端路由；生产域名可把 `www.timecampus.asia/admin/*` 跳转到 `admin.timecampus.asia/*`。
+- `/admin`、`/admin/*`、`/login`、`/register` 作为 Web 管理端入口；生产主站应把这些入口跳转到 `admin.timecampus.asia`，其中 `/admin/*` 去掉 `/admin` 前缀。
 - 管理端登录、注册路由在本地预览、管理端域名或关闭重定向时可直接渲染。
 
 验收口径：

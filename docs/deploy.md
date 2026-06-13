@@ -1,12 +1,14 @@
 # TimeCampus 生产部署说明
 
-根仓库只负责生产依赖服务编排：Valkey、Cap、Qdrant、Ollama 和一次性 embedding 模型拉取任务。Web 入口使用服务器 Nginx；Backend 使用 jar + systemd；Portal 构建产物发布到 Nginx 静态目录。
+根仓库只负责生产依赖服务编排：Valkey、Cap、Qdrant、Ollama 和一次性 embedding 模型拉取任务。Web 入口使用服务器 Nginx；Backend 使用 jar + systemd；Portal 构建产物发布到 `~/app/dist`，Nginx 直接以该目录作为 SPA root。
 
 ## 域名路由
 
 ```text
 www.timecampus.asia          门户首页静态资源
-www.timecampus.asia/admin/*  308 跳转到 admin.timecampus.asia/*
+www.timecampus.asia/admin/*  308 跳转到 admin.timecampus.asia/*（去掉 /admin 前缀）
+www.timecampus.asia/login    308 跳转到 admin.timecampus.asia/login
+www.timecampus.asia/register 308 跳转到 admin.timecampus.asia/register
 www.timecampus.asia/api/v1/* 兼容旧入口，Nginx 反代到后端
 admin.timecampus.asia/*      管理端 SPA 静态资源
 api.timecampus.asia/v1/*     API 新入口，Nginx 反代到后端 /api/v1/*
@@ -79,7 +81,7 @@ Backend 配置继续从服务器 `~/app/config` 读取，避免把生产密钥�
 
 ## Portal 部署
 
-Portal 常态部署由 Portal 仓库 CI 或部署脚本完成：本地/CI 构建静态资源，通过 SSH 同步到 Nginx 静态目录。Portal 只保存前端可公开配置，例如腾讯地图 JS key 和 Cap site endpoint；不得保存 Cap secret。
+Portal 常态部署由 Portal 仓库 CI 或部署脚本完成：本地/CI 构建静态资源，通过 SSH 同步到服务器 `~/app/dist`，服务器不再执行前端依赖安装或构建。Nginx 的 `www.timecampus.asia` 与 `admin.timecampus.asia` SPA root 都指向该目录；主站 `/admin`、`/admin/*`、`/login` 与 `/register` 只做 308 跳转到管理域名。Portal 只保存前端可公开配置，例如腾讯地图 JS key 和 Cap site endpoint；不得保存 Cap secret。
 
 ## RAG 初始化
 
