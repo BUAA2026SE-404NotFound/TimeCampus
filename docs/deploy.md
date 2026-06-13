@@ -81,7 +81,7 @@ Backend 配置继续从服务器 `~/app/config` 读取，避免把生产密钥�
 
 ## Portal 部署
 
-Portal 常态部署由 Portal 仓库 CI 或部署脚本完成：本地/CI 构建静态资源，通过 SSH 同步到服务器 `~/app/dist`，服务器不再执行前端依赖安装或构建。Nginx 的 `www.timecampus.asia` 与 `admin.timecampus.asia` SPA root 都指向该目录；主站 `/admin`、`/admin/*`、`/login` 与 `/register` 只做 308 跳转到管理域名。Portal 只保存前端可公开配置，例如腾讯地图 JS key 和 Cap site endpoint；不得保存 Cap secret。
+Portal 常态部署由 Portal 仓库 CI 或部署脚本完成：CI 只通过 SSH 登录服务器，在服务器已有 Portal 仓库拉取对应分支并本地执行 `pnpm install --frozen-lockfile`、`pnpm run lint`、`pnpm run typecheck` 和 `pnpm run build`；构建通过后备份旧 `~/app/dist`，再把新的 `dist` 发布到 `~/app/dist`。Nginx 的 `www.timecampus.asia` 与 `admin.timecampus.asia` SPA root 都指向该目录；主站 `/admin`、`/admin/*`、`/login` 与 `/register` 只做 308 跳转到管理域名。Portal 只保存前端可公开配置，例如腾讯地图 JS key 和 Cap site endpoint；不得保存 Cap secret。
 
 ## RAG 初始化
 
