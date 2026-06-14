@@ -26,6 +26,7 @@
 | --- | --- |
 | [Backend 数据库设计](../TimeCampus-Backend/docs/database.md) | 数据表字段、索引和建模说明 |
 | [Backend MCP Server](../TimeCampus-Backend/docs/mcp-server.md) | MCP Tools、Resources、Prompts、RAG 和 Agent HTTP API |
+| [Seedream Image Agent](../TimeCampus-Backend/docs/seedream-agent.md) | 时光合影工作室的职责边界、系统提示词、白名单背景和风控约束 |
 | [Alpha Release Notes](../TimeCampus-Backend/docs/alpha-release-notes.md) | Alpha 交付范围、限制和检查清单 |
 | [Alpha Test Report](../TimeCampus-Backend/docs/alpha-test-report.md) | 测试计划、测试矩阵、压测和出口条件 |
 

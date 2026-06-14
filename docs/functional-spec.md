@@ -1,7 +1,7 @@
 # TimeCampus 功能规格说明书
 
-版本：`0.2.0-beta`  
-基线日期：2026-06-10  
+版本：`0.3.0-beta`
+基线日期：2026-06-15
 适用范围：根仓库、`TimeCampus-Portal`、`TimeCampus-Backend`、`TimeCampus-Agent`
 
 本文档描述 TimeCampus 当前应交付和应维护的产品功能。接口、数据库和部署细节以 [技术规格说明书](technical-spec.md) 为准；模块启动方式以各模块 README 为准。
@@ -17,6 +17,7 @@ TimeCampus 是面向校园历史影像浏览、点位共创和运营维护的系
 - UGC 与评论审核流程，其中评论功能在 Portal 管理端标记为因微信小程序服务策略而废弃，但后端接口仍保留。
 - 审计日志、运营 Dashboard、运营地图和地图辅助工具。
 - Backend MCP Server、RAG 检索、Agent CLI 和游客步行路线摘要。
+- Seedream 时光合影工作室，受限于后端白名单历史模板、Cap 校验、用户须知同意和同 IP 每日生成限额。
 
 ## 2. 用户角色
 
@@ -43,6 +44,8 @@ TimeCampus 是面向校园历史影像浏览、点位共创和运营维护的系
 - `/project-info` 展示项目背景、价值和相关介绍。
 - `/mini-program` 展示微信小程序说明与入口素材。
 - `/campus-map` 独立加载公开校园地图，进入该页后再加载腾讯地图脚本和卫星瓦片，避免拖慢首页首屏。
+- `/seedream-studio` 提供时光合影工作室，用户需同意“隐私与安全”和“用户内容规范”，通过 Cap 后才能上传并生成图片。
+- `/privacy-security` 与 `/content-guidelines` 提供简短用户须知，页脚长期保留入口。
 - `/admin`、`/admin/*`、`/login`、`/register` 作为 Web 管理端入口；生产主站应把这些入口跳转到 `admin.timecampus.asia`，其中 `/admin/*` 去掉 `/admin` 前缀。
 - 管理端登录、注册路由在本地预览、管理端域名或关闭重定向时可直接渲染。
 
@@ -50,6 +53,7 @@ TimeCampus 是面向校园历史影像浏览、点位共创和运营维护的系
 
 - 首页不初始化腾讯地图；地图页可独立加载 POI、媒体预览和年份数据。
 - 公开地图使用无需管理员 token 的 `/api/v1/portal/map/home`。
+- 时光合影工作室不接收自由提示词或用户自定义背景，只能使用后端白名单历史模板；生成前必须提交 Cap token，同一 IP 每天最多生成 5 次。
 - 管理端入口在本地和生产域名策略下都能进入正确页面。
 
 ### 3.2 公开校园地图

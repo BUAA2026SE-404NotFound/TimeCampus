@@ -1,7 +1,7 @@
 # TimeCampus 技术规格说明书
 
-版本：`0.2.0-beta`  
-基线日期：2026-06-10  
+版本：`0.3.0-beta`
+基线日期：2026-06-15
 适用范围：根仓库、`TimeCampus-Portal`、`TimeCampus-Backend`、`TimeCampus-Agent`
 
 本文档描述 TimeCampus 的技术架构、模块边界、数据模型、接口分组、配置、部署和质量要求。功能范围与业务验收见 [功能规格说明书](functional-spec.md)。
@@ -10,7 +10,7 @@
 
 TimeCampus 根仓库是生产编排仓库，使用 Git submodule 管理三个子模块：
 
-- `TimeCampus-Portal`：React 门户、公开校园地图和 Web 管理端。
+- `TimeCampus-Portal`：React 门户、公开校园地图、时光合影工作室和 Web 管理端。
 - `TimeCampus-Backend`：Spring Boot 多模块后端、REST API、MCP Server、RAG 和第三方服务封装。
 - `TimeCampus-Agent`：独立 Python/LangChain CLI，用于后台维护、RAG 检索、草案生成和游客路线辅助。
 
@@ -67,9 +67,10 @@ TimeCampus/
 
 职责：
 
-- 渲染门户首页、项目详情、小程序说明和公开校园地图。
+- 渲染门户首页、项目详情、小程序说明、公开校园地图和时光合影工作室。
 - 渲染 Web 管理端，调用 Backend 管理端 API。
 - 根据 `VITE_ADMIN_DOMAIN`、`VITE_PORTAL_DOMAIN` 和 `VITE_ADMIN_REDIRECT` 处理管理端域名跳转。
+- 提供 Seedream 图生图入口，但只上传人物图、白名单背景 id 和 Cap token，不提供自由 prompt。
 - 通过 `src/api/request.ts` 统一处理 `/api/v1` 前缀、JSON 请求、FormData 和管理员 token。
 
 关键目录：
@@ -154,6 +155,7 @@ config/                 # Web、OpenAPI、Cap、Storage、腾讯地图等配置
 - 用户端和管理端均使用 `Authorization: Bearer <token>`。
 - Redis/Valkey 存储 token 会话。
 - 管理端登录生产环境必须由后端校验 Cap token。
+- Portal Seedream 生成接口同样必须由后端校验 Cap token，并通过 Redis/Valkey 对同一 IP 做每日 5 次限流。
 - `/api/v1/admin/**` 需要管理员 token，具体写操作受角色限制。
 - `/mcp` 生产环境需要 `X-TimeCampus-MCP-Token` 或 `Authorization: Bearer <token>`。
 
@@ -266,6 +268,7 @@ uv run ruff check .
 | 运营地图 | `GET /api/v1/admin/map/overview`、`GET /api/v1/admin/map/config` |
 | 日志 | `GET /api/v1/admin/logs` |
 | Agent | `POST /api/v1/admin/agent/rag/search`、`/rag/context-pack`、`/rag/rebuild-index`、`/draft` |
+| Portal Seedream | `GET /api/v1/portal/seedream/backgrounds`、`GET /api/v1/portal/seedream/backgrounds/{id}/preview`、`POST /api/v1/portal/seedream/generations` |
 
 ### 6.4 MCP
 
@@ -282,12 +285,12 @@ MCP 提供 POI、影像、RAG 和文案维护 Tools，提供 POI、media、dashb
 | 服务 | 使用位置 | 说明 |
 | --- | --- | --- |
 | MySQL | Backend | 业务数据主存储 |
-| Valkey/Redis | Backend、Cap | token、会话和 Cap 限流存储 |
+| Valkey/Redis | Backend、Cap | token、会话、Seedream 生成限流和 Cap 限流存储 |
 | 本地/COS 挂载存储 | Backend | 图片文件保存和读取 |
 | Tencent Map JS API | Portal | 公开地图和运营地图前端渲染 |
 | Tencent Map WebService | Backend | 逆地理编码、POI 搜索、步行路线 |
 | WeChat code2Session | Backend | 小程序登录 |
-| Cap Standalone | Portal、Backend | 管理端登录验证码，后端服务端校验 |
+| Cap Standalone | Portal、Backend | 管理端登录和公开生图的人机验证，后端服务端校验 |
 | Qdrant | Backend | 可选向量检索 |
 | Ollama | Backend | 生产默认 `all-minilm` embedding |
 | DeepSeek Chat | Backend、Agent | 管理端草案生成和 Agent chat model |
@@ -305,7 +308,7 @@ MCP 提供 POI、影像、RAG 和文案维护 Tools，提供 POI、media、dashb
 | `OLLAMA_PORT`、`OLLAMA_EMBEDDING_MODEL` | Ollama 本机绑定端口和启动后拉取的 embedding 模型 |
 | `CAP_ADMIN_KEY`、`CAP_CORS_ORIGIN`、`CAP_REDIS_URL` | Cap Standalone 管理密钥、跨域来源和 Redis 连接 |
 
-Backend 数据库、MCP、DeepSeek、腾讯地图、微信、文件存储和 Cap secret 等应用配置不再放在根 compose 环境变量中，生产以服务器 `~/app/config` 为准。
+Backend 数据库、MCP、DeepSeek、腾讯地图、微信、Seedream、文件存储和 Cap secret 等应用配置不再放在根 compose 环境变量中，生产以服务器 `~/app/config` 为准。
 
 ## 9. 部署架构
 

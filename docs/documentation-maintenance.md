@@ -1,7 +1,7 @@
 # TimeCampus 文档维护指南
 
-版本：`0.2.0-beta`  
-基线日期：2026-06-10
+版本：`0.3.0-beta`
+基线日期：2026-06-15
 
 本文档定义 TimeCampus 文档的分层、真源、更新清单和评审要求。目标是让文档随着代码自然维护，而不是在版本后期集中补账。
 
@@ -103,6 +103,7 @@
 - `schema.sql` 尚未覆盖 `MeController` 中 notes/memos 相关接口的数据表。下一次处理该功能时，应补表和数据库文档，或移除/隐藏未交付接口。
 - Portal 管理端当前没有独立 AI Workbench 页面。Agent 草案能力以 Backend `/api/v1/admin/agent/**`、MCP 和 Agent CLI 为准。
 - Portal 当前没有 `test:agents` 脚本。Agent 相关冒烟以根目录 `tools/agent-smoke.mjs` 和 Backend/Agent 测试命令为准。
+- Seedream 图片生成由 Backend 白名单、Cap 校验、Redis/Valkey 每日 IP 限流和 Portal 用户须知共同约束；修改时需同步 `seedream-agent.md`、Portal README 和功能/技术规格。
 
 ## 7. 文档更新最小模板
 
