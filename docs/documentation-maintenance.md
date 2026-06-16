@@ -12,7 +12,7 @@
 | 项目入口 | 根 [README](../README.md) | 项目定位、模块入口、快速启动、关键文档链接 | 完整接口表、完整业务规则、长篇部署细节 |
 | 项目规格 | [功能规格](functional-spec.md)、[技术规格](technical-spec.md) | 跨模块功能、架构、接口分组、数据模型、质量门槛 | 单个模块的逐行实现说明 |
 | 模块入口 | 三个子模块 README | 模块职责、快速启动、目录结构、命令、模块级约定 | 与项目规格重复的大段业务规则 |
-| 运维联调 | [deploy.md](deploy.md)、[agent-stack.md](agent-stack.md) | 可执行步骤、环境变量、健康检查、冒烟命令 | 产品背景和长期路线图 |
+| 运维联调 | [deploy.md](deploy.md)、[agent-stack.md](agent-stack.md)、[agent-evaluation.md](agent-evaluation.md) | 可执行步骤、环境变量、健康检查、冒烟命令、评估门禁 | 产品背景和长期路线图 |
 | 专项文档 | Backend `docs/*` | 数据库、MCP、测试报告、发布说明 | 根仓库 Compose 或 Portal 路由细节 |
 
 ## 2. 真源关系
@@ -29,7 +29,7 @@
 | Backend 数据表 | `schema.sql` | 技术规格、Backend `docs/database.md` |
 | Backend 配置 | `application-*-example.yaml`、配置类 | Backend README、技术规格、部署说明 |
 | Backend MCP/RAG | `timecampus-server/src/main/java/.../mcp` | `TimeCampus-Backend/docs/mcp-server.md`、`docs/agent-stack.md` |
-| Agent 命令 | `TimeCampus-Agent/src/timecampus_agent/cli.py` | Agent README、`docs/agent-stack.md` |
+| Agent 命令 | `TimeCampus-Agent/src/timecampus_agent/cli.py` | Agent README、`docs/agent-stack.md`、`docs/agent-evaluation.md` |
 | Agent 配置 | `TimeCampus-Agent/.env.example`、`config.py` | Agent README、技术规格 |
 
 ## 3. 改动清单
@@ -68,6 +68,7 @@
 
 - 更新 `TimeCampus-Backend/docs/mcp-server.md` 的 Tools、Resources、Prompts 或 Agent HTTP API。
 - 更新 `docs/agent-stack.md` 的联调命令。
+- 更新 `docs/agent-evaluation.md` 的评测用例、指标或门禁命令。
 - 更新 Agent README 的 CLI 示例。
 - 若新增写工具，说明确认参数、安全门槛和人工确认条件。
 

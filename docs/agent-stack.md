@@ -186,6 +186,7 @@ Agent：
 cd TimeCampus-Agent
 uv run pytest
 uv run ruff check .
+uv run timecampus-agent eval run --suite all --mode fixture --report-dir eval-reports --min-pass-rate 0.85 --min-overall 80
 ```
 
 ## 维护约束

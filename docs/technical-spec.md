@@ -344,6 +344,7 @@ docker compose --env-file .env -f compose.yaml up -d
 | Portal | `pnpm build` | 生产构建验证 |
 | Agent | `uv run pytest` | CLI、配置、MCP client 测试 |
 | Agent | `uv run ruff check .` | Python 静态检查 |
+| Agent | `uv run timecampus-agent eval run --suite all --mode fixture --report-dir eval-reports --min-pass-rate 0.85 --min-overall 80` | Agent 评估框架 fixture 门禁 |
 | 根编排 | `uv run --with pyyaml python -m unittest discover -s tests` | Compose 拓扑回归验证 |
 | 根编排 | `docker compose --env-file .env -f compose.yaml config` | Docker Compose 配置验证 |
 | API smoke | `node tools/agent-smoke.mjs --dry-run` | Agent/路线接口冒烟 |
@@ -365,4 +366,4 @@ docker compose --env-file .env -f compose.yaml up -d
 
 - `schema.sql` 当前只包含核心表；若 notes/memos 接口继续保留，需要补齐初始化脚本与数据库设计文档。
 - Portal 管理端当前没有独立 `/admin/ai-workbench` 页面；Agent 草案能力通过 Backend API、MCP 和 `TimeCampus-Agent` CLI 提供。
-- Portal `package.json` 当前没有 `test:agents` 脚本；相关验收命令应使用 `pnpm typecheck`、`pnpm lint`、`pnpm build` 和根目录 `tools/agent-smoke.mjs`。
+- Portal `package.json` 当前没有 `test:agents` 脚本；相关验收命令应使用 `pnpm typecheck`、`pnpm lint`、`pnpm build`、根目录 `tools/agent-smoke.mjs` 和 `TimeCampus-Agent` eval fixture 门禁。

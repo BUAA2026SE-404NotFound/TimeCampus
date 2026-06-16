@@ -53,6 +53,13 @@ Agent/API 冒烟：
 node tools/agent-smoke.mjs --dry-run
 ```
 
+Agent 评估门禁：
+
+```bash
+cd TimeCampus-Agent
+uv run timecampus-agent eval run --suite all --mode fixture --report-dir eval-reports --min-pass-rate 0.85 --min-overall 80
+```
+
 根编排回归测试：
 
 ```bash
@@ -66,5 +73,6 @@ uv run --with pyyaml python -m unittest discover -s tests
 - [技术规格说明书](docs/technical-spec.md)
 - [文档维护指南](docs/documentation-maintenance.md)
 - [Agent Stack 联调说明](docs/agent-stack.md)
+- [Agent 评估框架](docs/agent-evaluation.md)
 
 README 只作为入口；跨模块功能规则写入 [功能规格说明书](docs/functional-spec.md)，架构、接口、数据和部署规则写入 [技术规格说明书](docs/technical-spec.md)。

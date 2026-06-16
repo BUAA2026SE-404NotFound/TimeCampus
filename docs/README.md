@@ -11,6 +11,7 @@
 | [文档维护指南](documentation-maintenance.md) | 定义文档分层、更新清单、真源关系和评审要求 | 任何会改变开发、部署、接口、数据或运营流程的改动 |
 | [生产部署说明](deploy.md) | 说明 Nginx、systemd 后端、Compose 依赖服务、Cap、Qdrant、Ollama 等生产流程 | 域名、容器、环境变量、生产启动和健康检查变化 |
 | [Agent Stack 联调说明](agent-stack.md) | 说明 Backend MCP/RAG、Agent CLI 和游客路线 API 的本地联调 | Agent、MCP、RAG、草案生成或路线规划变更 |
+| [Agent 评估框架](agent-evaluation.md) | 说明 TimeCampus-Agent Eval Harness、指标、报告和 CI 门禁 | Agent 评测、Bad Case、质量回归和面试材料 |
 
 ## 子模块文档
 
@@ -35,6 +36,7 @@
 - 根仓库快速启动：见 [../README.md](../README.md)。
 - 生产部署：见 [deploy.md](deploy.md)。
 - 本地后端和 MCP 联调：见 [agent-stack.md](agent-stack.md)。
+- Agent 评估与 Bad Case 闭环：见 [agent-evaluation.md](agent-evaluation.md)。
 - API 调试：后端本地启动后访问 `http://localhost:8080/swagger-ui/index.html`。
 
 ## 维护原则
