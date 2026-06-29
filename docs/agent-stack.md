@@ -6,11 +6,12 @@
 
 - Backend MCP Server：`/mcp`，通过 Spring AI 暴露 Tools、Resources、Prompts，给外部 Agent 维护 POI、影像、审核状态和展示文案。
 - Backend RAG：从 MySQL 的 `poi`、`media`、`comment` 和内置维护规范构建语料；优先走 Qdrant，缺少向量配置时回退词法检索。
-- 管理端 Agent HTTP API：`/api/v1/admin/agent/**`，提供 RAG 检索、上下文包、草案生成和向量索引重建。
-- TimeCampus-Agent CLI：独立 Python/LangChain 工作区，调用 Backend REST API 和 MCP。
-- 游客导览 API：`/api/v1/map/walking-route`，根据 2-8 个点位返回步行路线摘要。
+- 管理端 Agent HTTP API：`/api/v1/admin/agent/**`，提供 RAG、草案、运营执行审批和 Eval 代理。
+- TimeCampus-Agent：独立 Python/LangGraph 工作区，提供 CLI 和仅供 Backend 调用的内部 FastAPI 服务。
+- 运营会话：Agent 使用 `sessions/*.jsonl` 保存多轮消息，使用 `MEMORY.md` 注入人工维护的长期约束；Portal 通过 Backend SSE 选择 session 并续聊。
+- 游客导览 API：`/api/v1/map/walking-route`，根据 2-8 个点位返回步行摘要与可绘制 `path`。
 
-当前 Portal 管理端没有独立 AI Workbench 页面；前端需要接入 Agent 能力时，应调用 Backend `/api/v1/admin/agent/**`，并同步更新 Portal 路由和规格文档。
+Portal `/campus-map` 提供无对话入口的游客导览；管理端 `/admin/agent-operations` 和 `/admin/agent-eval` 分别提供运营审批与评测页面。
 
 ## 本地启动
 
@@ -18,6 +19,25 @@
 
 ```powershell
 .\tools\start-backend-mcp.ps1
+```
+
+Backend 和 Agent 设置相同的 `TIMECAMPUS_AGENT_API_TOKEN` 后启动内部服务：
+
+```powershell
+cd TimeCampus-Agent
+uv run timecampus-agent serve
+```
+
+本地会话默认写入 `TimeCampus-Agent/data/agent-memory`。可通过 `TIMECAMPUS_AGENT_MEMORY_DIR` 修改，并用 `TIMECAMPUS_AGENT_SESSION_HISTORY_LIMIT` 控制每轮回放消息数。
+
+运营会话代理：
+
+```text
+GET  /api/v1/admin/agent/operations/sessions
+POST /api/v1/admin/agent/operations/sessions
+GET  /api/v1/admin/agent/operations/sessions/{sessionId}
+POST /api/v1/admin/agent/operations/sessions/{sessionId}/messages/stream
+POST /api/v1/admin/agent/operations/runs/{threadId}/decisions/stream
 ```
 
 默认不依赖 Docker、WSL 或 Qdrant，后端使用 `dev` profile，RAG 使用词法检索。开发私钥写入被忽略的 `TimeCampus-Backend/timecampus-server/src/main/resources/application-dev.yaml`。
@@ -104,9 +124,12 @@ Copy-Item .env.example .env
 uv run timecampus-agent rag-search "主楼旧照"
 uv run timecampus-agent draft "为主楼补充面向游客的简介"
 uv run timecampus-agent ask "检索主楼资料并给出维护计划"
+uv run timecampus-agent ask --agent guide "主楼到图书馆怎么走？"
 uv run timecampus-agent mcp-tools
 uv run timecampus-agent route "主楼,39.981,116.34;图书馆,39.982,116.341"
 ```
+
+Agent 状态图见 [TimeCampus-Agent/docs/langgraph-agent.md](../TimeCampus-Agent/docs/langgraph-agent.md)。
 
 ## API Smoke
 

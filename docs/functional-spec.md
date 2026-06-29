@@ -43,7 +43,7 @@ TimeCampus 是面向校园历史影像浏览、点位共创和运营维护的系
 - `/` 展示门户首页，并提供进入项目详情、小程序说明、校园地图和管理端的导航。
 - `/project-info` 展示项目背景、价值和相关介绍。
 - `/mini-program` 展示微信小程序说明与入口素材。
-- `/campus-map` 独立加载公开校园地图，进入该页后再加载腾讯地图脚本和卫星瓦片，避免拖慢首页首屏。
+- 首页突出展示 `CAMPUS MAP` 智能导览入口；`/campus-map` 独立加载腾讯地图，支持景点查询、热门路线和 2-8 点步行规划。
 - `/seedream-studio` 提供时光合影工作室，用户需同意“隐私与安全”和“用户内容规范”，通过 Cap 后才能上传并生成图片。
 - `/privacy-security` 与 `/content-guidelines` 提供简短用户须知，页脚长期保留入口。
 - `/admin`、`/admin/*`、`/login`、`/register` 作为 Web 管理端入口；生产主站应把这些入口跳转到 `admin.timecampus.asia`，其中 `/admin/*` 去掉 `/admin` 前缀。
@@ -151,12 +151,15 @@ Agent 能力服务内容维护、检索、草案生成和游客导览。
 
 功能要求：
 
-- `TimeCampus-Agent` CLI 提供 `rag-search`、`draft`、`ask`、`route`、`mcp-tools` 命令。
+- `TimeCampus-Agent` CLI 提供 `rag-search`、`draft`、`ask`、`route`、`mcp-tools` 命令；`ask` 使用 LangGraph supervisor 自动分流运营智能体和游客导引智能体。
 - Backend 暴露 `/mcp` Streamable HTTP MCP Server，提供 POI、影像、RAG 和文案维护相关 Tools、Resources、Prompts。
-- Backend 管理端 Agent API 提供 RAG 检索、上下文包、草案生成和向量索引重建。
+- Backend 管理端 Agent API 提供 RAG、草案、向量索引、运营执行审批和 Eval 代理。
+- Portal 管理端提供运营智能体和 Agent Eval 页面；运营智能体支持创建、选择本地持久 session 并在同一上下文中多轮完成任务。
+- 运营回答通过 SSE 流式显示并使用 Markdown 渲染；运营写工具仍必须经过质量门禁与逐项人工审批。
+- 游客导览继续保持无聊天入口，只提供景点查询、热门路线与地图路线规划。
 - 草案生成必须带有 grounding、actionSafety、completeness、citationDensity、overall 等质量评分。
 - 管理写入执行线默认为 `overall >= 85` 且 `actionSafety >= 80`；低于执行线只生成草案，不自动写入。
-- 游客导览通过 `POST /api/v1/map/walking-route` 生成步行路线总距离、总耗时和分段摘要。
+- 游客导览通过 `POST /api/v1/map/walking-route` 生成步行路线总距离、总耗时、分段摘要和地图折线路径。
 
 安全要求：
 

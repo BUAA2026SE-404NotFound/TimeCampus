@@ -12,7 +12,7 @@ TimeCampus 根仓库是生产编排仓库，使用 Git submodule 管理三个子
 
 - `TimeCampus-Portal`：React 门户、公开校园地图、时光合影工作室和 Web 管理端。
 - `TimeCampus-Backend`：Spring Boot 多模块后端、REST API、MCP Server、RAG 和第三方服务封装。
-- `TimeCampus-Agent`：独立 Python/LangChain CLI，用于后台维护、RAG 检索、草案生成和游客路线辅助。
+- `TimeCampus-Agent`：独立 Python/LangGraph CLI，用于后台运营维护、RAG 检索、草案生成和游客导引。
 
 生产运行时由 Nginx 统一暴露 HTTPS，Nginx 提供门户/管理端静态资源、API 反向代理和 Cap 反向代理；Backend 以 jar + systemd 运行，访问 MySQL、Valkey、Qdrant、Ollama、Cap、腾讯地图、微信和 DeepSeek 等服务。根 Compose 只负责 Valkey、Cap、Qdrant、Ollama 等依赖服务。
 
@@ -41,11 +41,11 @@ flowchart LR
 | 层级 | 技术 |
 | --- | --- |
 | 根编排 | Docker Compose 依赖服务、Git submodule、PowerShell/Python 运维脚本 |
-| Portal | React 19、TypeScript 5.9、Vite 7、Tailwind CSS 4、shadcn/ui、Radix UI、lucide-react、GSAP、cap-widget |
+| Portal | React 19、TypeScript 5.9、Vite 8、Tailwind CSS 4、shadcn/ui、Radix UI、lucide-react、GSAP、markstream-react、cap-widget |
 | Backend | Java 21、Spring Boot 3.5.14、Spring AI 1.1.7、Spring MVC、MyBatis、Maven、Springdoc OpenAPI |
 | 数据与缓存 | MySQL 8、Valkey/Redis、Qdrant 1.14.1、本地/COS 挂载文件存储 |
 | AI/RAG | Spring AI MCP Server、Qdrant VectorStore、Ollama `all-minilm`、可选智谱 embedding、DeepSeek Chat |
-| Agent | Python 3.12、uv、LangChain、langchain-openai、httpx、pydantic、rich、pytest、ruff |
+| Agent | Python 3.12、uv、LangGraph、LangChain、FastAPI、Uvicorn、MCP Adapter、httpx、pydantic、pytest、ruff |
 | 第三方服务 | 腾讯地图 JS API 和 WebService、微信小程序 code2Session、Cap CAPTCHA |
 
 ## 3. 仓库结构
@@ -72,6 +72,7 @@ TimeCampus/
 - 根据 `VITE_ADMIN_DOMAIN`、`VITE_PORTAL_DOMAIN` 和 `VITE_ADMIN_REDIRECT` 处理管理端域名跳转。
 - 提供 Seedream 图生图入口，但只上传人物图、白名单背景 id 和 Cap token，不提供自由 prompt。
 - 通过 `src/api/request.ts` 统一处理 `/api/v1` 前缀、JSON 请求、FormData 和管理员 token。
+- 通过 Backend SSE 代理消费运营智能体 token，并使用 `markstream-react` 渲染流式 Markdown。
 
 关键目录：
 
@@ -190,7 +191,9 @@ mvn -pl timecampus-server -am spring-boot:run
 | `backend.py` | Backend REST API typed client |
 | `tools.py` | LangChain 工具包装 |
 | `mcp_client.py` | Backend MCP 工具加载 |
-| `agent.py` | LangChain tool-calling agent 组装 |
+| `agent.py` | LangGraph supervisor，分流运营智能体和游客导引智能体 |
+| `service.py` | FastAPI 内部鉴权、运营 session、SSE、HITL 与 Eval 接口 |
+| `memory.py` | JSONL 会话原子持久化和 `MEMORY.md` 长期运营约束 |
 | `cli.py` | `timecampus-agent` 命令入口 |
 
 CLI 命令：
@@ -199,6 +202,7 @@ CLI 命令：
 uv run timecampus-agent rag-search "主楼旧照"
 uv run timecampus-agent draft "为主楼补充面向游客的简介"
 uv run timecampus-agent ask "检索主楼资料并给出维护计划"
+uv run timecampus-agent ask --agent guide "主楼到图书馆怎么走？"
 uv run timecampus-agent route "主楼,39.981,116.34;图书馆,39.982,116.341"
 uv run timecampus-agent mcp-tools
 ```
@@ -267,7 +271,7 @@ uv run ruff check .
 | 评论 | `GET /api/v1/admin/comments`、`POST /api/v1/admin/comments/{id}/approve|reject` |
 | 运营地图 | `GET /api/v1/admin/map/overview`、`GET /api/v1/admin/map/config` |
 | 日志 | `GET /api/v1/admin/logs` |
-| Agent | `POST /api/v1/admin/agent/rag/search`、`/rag/context-pack`、`/rag/rebuild-index`、`/draft` |
+| Agent | `POST /api/v1/admin/agent/rag/search`、`/rag/context-pack`、`/rag/rebuild-index`、`/draft`、`/operations/runs`、`GET/POST /operations/sessions`、`POST /operations/sessions/{id}/messages/stream`、`/evals/runs` |
 | Portal Seedream | `GET /api/v1/portal/seedream/backgrounds`、`GET /api/v1/portal/seedream/backgrounds/{id}/preview`、`POST /api/v1/portal/seedream/generations` |
 
 ### 6.4 MCP
@@ -294,6 +298,7 @@ MCP 提供 POI、影像、RAG 和文案维护 Tools，提供 POI、media、dashb
 | Qdrant | Backend | 可选向量检索 |
 | Ollama | Backend | 生产默认 `all-minilm` embedding |
 | DeepSeek Chat | Backend、Agent | 管理端草案生成和 Agent chat model |
+| Agent 本地文件 | Agent | `sessions/*.jsonl` 对话历史和 `MEMORY.md` 长期运营约束 |
 
 ## 8. 配置与密钥
 
@@ -319,6 +324,7 @@ Backend 数据库、MCP、DeepSeek、腾讯地图、微信、Seedream、文件�
 - `ollama` 和 `ollama-pull-all-minilm`：embedding 模型服务和模型拉取任务。
 - `cap`：自托管 Cap Standalone。
 - `timecampus-backend.service`：Spring Boot API，使用 `prod` profile，以 jar + systemd 运行。
+- `timecampus-agent.service`：FastAPI 内部服务，仅监听 `127.0.0.1:8090`，会话目录挂载到持久磁盘。
 - Nginx：HTTPS、静态资源、门户/管理端/API/Cap 路由。
 
 域名路由见 [生产部署说明](deploy.md)。生产公网入口只暴露 Nginx `80/443`；Backend、Cap、Qdrant、Ollama 默认绑定 `127.0.0.1`，Valkey 留在 Docker 网络内。
@@ -365,5 +371,5 @@ docker compose --env-file .env -f compose.yaml up -d
 ## 12. 当前已知同步点
 
 - `schema.sql` 当前只包含核心表；若 notes/memos 接口继续保留，需要补齐初始化脚本与数据库设计文档。
-- Portal 管理端当前没有独立 `/admin/ai-workbench` 页面；Agent 草案能力通过 Backend API、MCP 和 `TimeCampus-Agent` CLI 提供。
+- Portal 管理端通过 `/admin/agent-operations` 提供质量门禁与 HITL 审批，通过 `/admin/agent-eval` 提供 Fixture/Live 评测。
 - Portal `package.json` 当前没有 `test:agents` 脚本；相关验收命令应使用 `pnpm typecheck`、`pnpm lint`、`pnpm build`、根目录 `tools/agent-smoke.mjs` 和 `TimeCampus-Agent` eval fixture 门禁。
