@@ -12,6 +12,7 @@
 | [生产部署说明](deploy.md) | 说明 Nginx、systemd 后端、Compose 依赖服务、Cap、Qdrant、Ollama 等生产流程 | 域名、容器、环境变量、生产启动和健康检查变化 |
 | [Agent Stack 联调说明](agent-stack.md) | 说明 Backend MCP/RAG、Agent CLI 和游客路线 API 的本地联调 | Agent、MCP、RAG、草案生成或路线规划变更 |
 | [Agent 评估框架](agent-evaluation.md) | 说明 TimeCampus-Agent Eval Harness、指标、报告和 CI 门禁 | Agent 评测、Bad Case、质量回归和面试材料 |
+| [AI 产品测试面试材料](ai-test-interview-pack.md) | STAR 简历、核心代码讲解、真实追问和 PPT 提示词 | 投递 AI 产品测试、测试开发或 Agent 质量岗位 |
 
 ## 子模块文档
 

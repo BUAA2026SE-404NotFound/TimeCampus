@@ -44,14 +44,14 @@ services:
       timeout: 10s
       retries: 20
 
-  ollama-pull-all-minilm:
+  ollama-pull-embedding:
     image: ollama/ollama:latest
     dns:
       - 223.5.5.5
       - 1.1.1.1
     environment:
       OLLAMA_HOST: http://ollama:11434
-    command: ["pull", "${OLLAMA_EMBEDDING_MODEL:-all-minilm}"]
+    command: ["pull", "${OLLAMA_EMBEDDING_MODEL:-embeddinggemma:300m}"]
     depends_on:
       ollama:
         condition: service_started

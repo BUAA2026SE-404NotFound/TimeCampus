@@ -16,7 +16,7 @@ class ComposeLayoutTest(unittest.TestCase):
 
     def test_root_compose_only_runs_supporting_services(self) -> None:
         self.assertEqual(
-            {"valkey", "qdrant", "ollama", "ollama-pull-all-minilm", "cap"},
+            {"valkey", "qdrant", "ollama", "ollama-pull-embedding", "cap"},
             set(self.services),
         )
         for service in self.services.values():
@@ -47,8 +47,11 @@ class ComposeLayoutTest(unittest.TestCase):
         )
 
     def test_ollama_embedding_model_pull_is_explicit(self) -> None:
-        pull = self.services["ollama-pull-all-minilm"]
-        self.assertEqual(["pull", "${OLLAMA_EMBEDDING_MODEL:-all-minilm}"], pull["command"])
+        pull = self.services["ollama-pull-embedding"]
+        self.assertEqual(
+            ["pull", "${OLLAMA_EMBEDDING_MODEL:-embeddinggemma:300m}"],
+            pull["command"],
+        )
         self.assertEqual("http://ollama:11434", pull["environment"]["OLLAMA_HOST"])
 
 

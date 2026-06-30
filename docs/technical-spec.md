@@ -44,7 +44,7 @@ flowchart LR
 | Portal | React 19、TypeScript 5.9、Vite 8、Tailwind CSS 4、shadcn/ui、Radix UI、lucide-react、GSAP、markstream-react、cap-widget |
 | Backend | Java 21、Spring Boot 3.5.14、Spring AI 1.1.7、Spring MVC、MyBatis、Maven、Springdoc OpenAPI |
 | 数据与缓存 | MySQL 8、Valkey/Redis、Qdrant 1.14.1、本地/COS 挂载文件存储 |
-| AI/RAG | Spring AI MCP Server、Qdrant VectorStore、Ollama `all-minilm`、可选智谱 embedding、DeepSeek Chat |
+| AI/RAG | Spring AI MCP Server、Qdrant VectorStore、Ollama `embeddinggemma:300m`、可选智谱 embedding、DeepSeek Chat |
 | Agent | Python 3.12、uv、LangGraph、LangChain、FastAPI、Uvicorn、MCP Adapter、httpx、pydantic、pytest、ruff |
 | 第三方服务 | 腾讯地图 JS API 和 WebService、微信小程序 code2Session、Cap CAPTCHA |
 
@@ -296,7 +296,7 @@ MCP 提供 POI、影像、RAG 和文案维护 Tools，提供 POI、media、dashb
 | WeChat code2Session | Backend | 小程序登录 |
 | Cap Standalone | Portal、Backend | 管理端登录和公开生图的人机验证，后端服务端校验 |
 | Qdrant | Backend | 可选向量检索 |
-| Ollama | Backend | 生产默认 `all-minilm` embedding |
+| Ollama | Backend | 生产默认 `embeddinggemma:300m` 768 维 embedding |
 | DeepSeek Chat | Backend、Agent | 管理端草案生成和 Agent chat model |
 | Agent 本地文件 | Agent | `sessions/*.jsonl` 对话历史和 `MEMORY.md` 长期运营约束 |
 
@@ -321,7 +321,7 @@ Backend 数据库、MCP、DeepSeek、腾讯地图、微信、Seedream、文件�
 
 - `valkey`：Redis 兼容缓存与 token 存储。
 - `qdrant`：向量库，默认只绑定服务器本机端口。
-- `ollama` 和 `ollama-pull-all-minilm`：embedding 模型服务和模型拉取任务。
+- `ollama` 和 `ollama-pull-embedding`：embedding 模型服务和模型拉取任务。
 - `cap`：自托管 Cap Standalone。
 - `timecampus-backend.service`：Spring Boot API，使用 `prod` profile，以 jar + systemd 运行。
 - `timecampus-agent.service`：FastAPI 内部服务，仅监听 `127.0.0.1:8090`，会话目录挂载到持久磁盘。

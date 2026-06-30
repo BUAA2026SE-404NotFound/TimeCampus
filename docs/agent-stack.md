@@ -63,7 +63,7 @@ timecampus:
     ollama:
       embedding:
         enabled: true
-        model: all-minilm
+        model: embeddinggemma:300m
         dimensions: 384
 spring:
   ai:

@@ -1,6 +1,6 @@
 # TimeCampus 生产部署说明
 
-根仓库只负责生产依赖服务编排：Valkey、Cap、Qdrant、Ollama 和一次性 embedding 模型拉取任务。Web 入口使用服务器 Nginx；Backend 使用 jar + systemd；Portal 构建产物发布到 `~/app/dist`，Nginx 直接以该目录作为 SPA root。
+根仓库只负责生产依赖服务编排：Valkey、Cap、Qdrant、Ollama 和一次性 embedding 模型拉取任务。Web 入口使用服务器 Nginx；Backend 使用 jar + systemd；Agent 使用 wheel + systemd；Portal 使用静态 `dist`。三个应用均由 CI runner 构建产物，服务器不依赖私有仓库 `git fetch`。
 
 ## 域名路由
 
@@ -41,7 +41,7 @@ docker compose --env-file .env -f compose.yaml up -d
 uv run --with paramiko python tools/deploy-compose.py
 ```
 
-Compose 首次启动会拉起 Ollama，并执行一次 `ollama pull all-minilm`。
+Compose 首次启动会拉起 Ollama，并执行一次 `ollama pull embeddinggemma:300m`。
 
 ## Cap 初始化
 
@@ -70,25 +70,19 @@ sudo systemctl restart timecampus-backend
 
 ## Backend 部署
 
-常态修改后，在 Backend 仓库使用部署脚本发布 jar。脚本在本地构建，然后通过 SSH 替换服务器 jar 并重启 systemd 服务，不依赖服务器代理下载 Maven 依赖。
-
-```bash
-cd TimeCampus-Backend
-bash deploy/scripts/deploy-backend.sh
-```
-
-Backend 配置继续从服务器 `~/app/config` 读取，避免把生产密钥写入仓库。
+Backend CI 在 runner 执行 Maven 测试与打包，上传 `timecampus-server.jar`，服务器调用 `deploy-backend-artifact.sh` 替换 `~/app/app.jar`。发布前备份到 `~/app/backups`，健康检查失败自动恢复旧 jar。`~/app/config` 与远端仓库均不修改。
 
 ## Agent 部署
 
-Agent 作为独立 systemd 服务运行，只监听 `127.0.0.1:8090`。服务器创建仅 Agent 用户可读的 `/etc/timecampus/agent.env`：
+Agent 作为独立 systemd 服务运行，只监听 `127.0.0.1:8090`。生产环境变量统一由 `/home/ubuntu/TimeCampus/.env` 提供，文件权限应为 `600`：
 
 ```env
 TIMECAMPUS_AGENT_API_TOKEN=<与 Backend 相同的长随机 Token>
 TIMECAMPUS_AGENT_API_HOST=127.0.0.1
 TIMECAMPUS_AGENT_API_PORT=8090
-TIMECAMPUS_AGENT_MEMORY_DIR=/var/lib/timecampus-agent/memory
+TIMECAMPUS_AGENT_MEMORY_DIR=/home/ubuntu/timecampus-agent/shared/memory
 TIMECAMPUS_AGENT_SESSION_HISTORY_LIMIT=40
+TIMECAMPUS_EVAL_REPORT_DIR=/home/ubuntu/timecampus-agent/shared/eval-reports
 TIMECAMPUS_CHAT_BASE_URL=https://api.deepseek.com/v1
 TIMECAMPUS_CHAT_MODEL=deepseek-chat
 TIMECAMPUS_CHAT_API_KEY=<DeepSeek API key>
@@ -96,20 +90,11 @@ TIMECAMPUS_MCP_URL=http://127.0.0.1:8080/mcp
 TIMECAMPUS_MCP_TOKEN=<与 Backend MCP 相同的 Token>
 ```
 
-创建持久目录并安装依赖：
+CI 上传 wheel 后调用 `deploy/deploy-agent-artifact.sh`。每个版本安装到 `~/timecampus-agent/releases/<git-sha>`，`current` 软链接切换到新版本，内存与评测历史保存在 `shared`。健康检查失败自动恢复旧软链接，最多保留 5 个 release。部署后执行：
 
 ```bash
-sudo install -d -o timecampus -g timecampus /var/lib/timecampus-agent/memory
-cd ~/TimeCampus/TimeCampus-Agent
-uv sync --frozen
-```
-
-`timecampus-agent.service` 的 `WorkingDirectory` 指向 Agent 仓库，`EnvironmentFile` 指向 `/etc/timecampus/agent.env`，`ExecStart` 使用 `uv run timecampus-agent serve`。部署后执行：
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now timecampus-agent
 curl http://127.0.0.1:8090/health
+readlink -f ~/timecampus-agent/current
 ```
 
 Backend 的 `application-prod.yaml` 必须配置：
@@ -125,7 +110,9 @@ Backend systemd 同样需要读取包含 `TIMECAMPUS_AGENT_API_TOKEN` 的环境�
 
 ## Portal 部署
 
-Portal 常态部署由 Portal 仓库 CI 或部署脚本完成：CI 只通过 SSH 登录服务器，在服务器已有 Portal 仓库拉取对应分支并本地执行 `pnpm install --frozen-lockfile`、`pnpm run lint`、`pnpm run typecheck` 和 `pnpm run build`；若服务器 Portal 仓库存在未提交改动，先用 `git stash push -u` 备份再切换分支。构建通过后备份旧 `~/app/dist`，再把新的 `dist` 发布到 `~/app/dist`。Nginx 的 `www.timecampus.asia` 与 `admin.timecampus.asia` SPA root 都指向该目录；主站 `/admin`、`/admin/*`、`/login` 与 `/register` 只做 308 跳转到管理域名。Portal 只保存前端可公开配置，例如腾讯地图 JS key 和 Cap site endpoint；不得保存 Cap secret。
+Portal CI 在 runner 执行 lint、typecheck、build 和桌面/移动端 Playwright。通过后上传 `dist`，服务器将旧 `~/app/dist` 移入 `~/app/backups`，再通过同文件系统重命名发布新目录。Nginx 校验失败时恢复旧目录。远端 Portal 仓库不会被修改。Portal 只保存可公开配置，例如腾讯地图 JS key 和 Cap site endpoint；不得保存 Cap secret。
+
+`/campus-map` 优先从公开接口 `GET /api/v1/portal/map/config` 运行时读取腾讯地图 JS Key，`VITE_TENCENT_MAP_KEY` 只作为构建期回退值。该接口不得返回腾讯地图 SK。
 
 运营智能体使用 SSE。Nginx 的 API 反向代理需配置：
 
@@ -142,6 +129,28 @@ proxy_read_timeout 300s;
 timecampus_rag_rebuild_vector_index
 ```
 
+## 环境变量白名单
+
+从本地同步到服务器前必须先备份远端 `.env`，且仅同步缺失项。至少检查：
+
+```text
+TIMECAMPUS_AGENT_API_TOKEN
+TIMECAMPUS_AGENT_API_HOST
+TIMECAMPUS_AGENT_API_PORT
+TIMECAMPUS_AGENT_MEMORY_DIR
+TIMECAMPUS_AGENT_SESSION_HISTORY_LIMIT
+TIMECAMPUS_EVAL_REPORT_DIR
+TIMECAMPUS_CHAT_BASE_URL
+TIMECAMPUS_CHAT_MODEL
+TIMECAMPUS_CHAT_API_KEY
+TIMECAMPUS_MCP_URL
+TIMECAMPUS_MCP_TOKEN
+QDRANT_*
+OLLAMA_*
+```
+
+共享 Agent Token 必须同时被 Agent systemd 与 Backend systemd 读取。凭据不得写入 Git、CI artifact、测试报告或命令日志。
+
 当前生产默认使用：
 
 ```yaml
@@ -156,9 +165,13 @@ timecampus:
     ollama:
       embedding:
         enabled: true
-        model: all-minilm
-        dimensions: 384
+        model: embeddinggemma:300m
+        dimensions: 768
 ```
+
+embedding 模型维度发生变化时不得复用旧 collection。生产使用
+`QDRANT_COLLECTION=timecampus_rag_embeddinggemma`，切换后执行
+`timecampus_rag_rebuild_vector_index`，确认新 collection 状态为 green 后再保留或清理旧索引。
 
 ## 常用检查
 

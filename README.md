@@ -18,7 +18,7 @@ TimeCampus 是面向校园历史影像浏览、点位共创和运营维护的系
 - `valkey`：Redis 兼容缓存和 Cap 限流存储。
 - `cap`：管理端登录验证码服务。
 - `qdrant`：RAG 向量检索。
-- `ollama`：默认拉取 `all-minilm`，提供 embedding。
+- `ollama`：默认拉取 `embeddinggemma:300m`，提供 768 维 embedding。
 
 生产 Web 入口使用服务器上的 Nginx；后端使用 Backend 仓库部署脚本发布 jar 并由 systemd 管理；Portal 使用 Portal 仓库构建后发布到 Nginx 静态目录。
 
@@ -74,5 +74,6 @@ uv run --with pyyaml python -m unittest discover -s tests
 - [文档维护指南](docs/documentation-maintenance.md)
 - [Agent Stack 联调说明](docs/agent-stack.md)
 - [Agent 评估框架](docs/agent-evaluation.md)
+- [AI 产品测试工程面试材料](docs/ai-test-interview-pack.md)
 
 README 只作为入口；跨模块功能规则写入 [功能规格说明书](docs/functional-spec.md)，架构、接口、数据和部署规则写入 [技术规格说明书](docs/technical-spec.md)。
