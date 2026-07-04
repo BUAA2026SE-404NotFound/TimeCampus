@@ -20,7 +20,7 @@ TimeCampus 是面向校园历史影像浏览、点位共创和运营维护的系
 - `qdrant`：RAG 向量检索。
 - `ollama`：默认拉取 `embeddinggemma:300m`，提供 768 维 embedding。
 
-生产 Web 入口使用服务器上的 Nginx；后端使用 Backend 仓库部署脚本发布 jar 并由 systemd 管理；Portal 使用 Portal 仓库构建后发布到 Nginx 静态目录。
+生产 Web 入口使用服务器上的 Nginx；CI 测试通过后由服务器获取精确 Git SHA 并本地构建，Backend/Agent 由 systemd 管理，Portal 发布到 Nginx 静态目录。
 
 ## 快速启动
 

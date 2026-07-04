@@ -1,6 +1,6 @@
 # TimeCampus 生产部署说明
 
-根仓库只负责生产依赖服务编排：Valkey、Cap、Qdrant、Ollama 和一次性 embedding 模型拉取任务。Web 入口使用服务器 Nginx；Backend 使用 jar + systemd；Agent 使用 wheel + systemd；Portal 使用静态 `dist`。三个应用均由 CI runner 构建产物，服务器不依赖私有仓库 `git fetch`。
+根仓库只负责生产依赖服务编排：Valkey、Cap、Qdrant、Ollama 和一次性 embedding 模型拉取任务。Web 入口使用服务器 Nginx；Backend 使用 jar + systemd；Agent 使用 wheel + systemd；Portal 使用静态 `dist`。CI 先完成测试，再通过 SSH 要求服务器从 GitHub HTTPS 获取已测试的精确 commit；Maven、uv 和 pnpm 构建均在服务器完成，不使用 SCP 上传产物。
 
 ## 域名路由
 
@@ -26,6 +26,25 @@ cp .env.example .env
 ```
 
 根 `.env` 只填写 compose 依赖服务变量，例如 Valkey 密码、Qdrant/Ollama 本机端口和 Cap 管理密钥。后端数据库、MCP、DeepSeek、腾讯地图、微信、存储和 Cap secret 配置位于服务器 `~/app/config/application.yaml` 与 `~/app/config/application-prod.yaml`。
+
+## GitHub 拉取代理
+
+生产机无法直连 GitHub 时，sing-box 以 systemd 服务运行，仅在
+`127.0.0.1:1080` 提供 SOCKS/HTTP mixed 入口。节点凭据只保存在
+`/etc/sing-box/config.json`，文件权限为 `root:sing-box 0640`，不得写入
+Git、CI secret 输出或项目 `.env`。
+
+只为部署用户的 GitHub HTTPS 拉取启用代理：
+
+```bash
+git config --global http.https://github.com.proxy socks5h://127.0.0.1:1080
+systemctl is-active sing-box
+curl --proxy socks5h://127.0.0.1:1080 -I https://github.com
+git ls-remote https://github.com/BUAA2026SE-404NotFound/TimeCampus-Agent.git
+```
+
+配置变更前备份 `/etc/sing-box/config.json`，并在重启前执行
+`sudo sing-box check -c /etc/sing-box/config.json`。代理入口不得监听公网地址。
 
 ## 启动依赖服务
 
@@ -70,7 +89,7 @@ sudo systemctl restart timecampus-backend
 
 ## Backend 部署
 
-Backend CI 在 runner 执行 Maven 测试与打包，上传 `timecampus-server.jar`，服务器调用 `deploy-backend-artifact.sh` 替换 `~/app/app.jar`。发布前备份到 `~/app/backups`，健康检查失败自动恢复旧 jar。`~/app/config` 与远端仓库均不修改。
+Backend CI 在 runner 执行 Maven 全量测试。通过后服务器在 `~/TimeCampus-Backend` 获取对应 Git SHA，执行 `mvn -pl timecampus-server -am clean package -DskipTests`，再调用 `deploy-backend-artifact.sh` 替换 `~/app/app.jar`。发布前备份到 `~/app/backups`，健康检查失败自动恢复旧 jar；`~/app/config` 不参与 Git 更新。
 
 ## Agent 部署
 
@@ -90,7 +109,7 @@ TIMECAMPUS_MCP_URL=http://127.0.0.1:8080/mcp
 TIMECAMPUS_MCP_TOKEN=<与 Backend MCP 相同的 Token>
 ```
 
-CI 上传 wheel 后调用 `deploy/deploy-agent-artifact.sh`。每个版本安装到 `~/timecampus-agent/releases/<git-sha>`，`current` 软链接切换到新版本，内存与评测历史保存在 `shared`。健康检查失败自动恢复旧软链接，最多保留 5 个 release。部署后执行：
+CI 通过后，服务器在 `~/TimeCampus-Agent` 获取对应 Git SHA，使用 `uv build` 构建 wheel，再调用 `deploy/deploy-agent-artifact.sh`。每个版本安装到 `~/timecampus-agent/releases/<git-sha>`，`current` 软链接切换到新版本，内存与评测历史保存在 `shared`。健康检查失败自动恢复旧软链接，最多保留 5 个 release。部署后执行：
 
 ```bash
 curl http://127.0.0.1:8090/health
@@ -110,7 +129,7 @@ Backend systemd 同样需要读取包含 `TIMECAMPUS_AGENT_API_TOKEN` 的环境�
 
 ## Portal 部署
 
-Portal CI 在 runner 执行 lint、typecheck、build 和桌面/移动端 Playwright。通过后上传 `dist`，服务器将旧 `~/app/dist` 移入 `~/app/backups`，再通过同文件系统重命名发布新目录。Nginx 校验失败时恢复旧目录。远端 Portal 仓库不会被修改。Portal 只保存可公开配置，例如腾讯地图 JS key 和 Cap site endpoint；不得保存 Cap secret。
+Portal CI 在 runner 执行 lint、typecheck、build 和桌面/移动端 Playwright。通过后服务器经本地 SOCKS5 代理从 GitHub codeload 下载对应 Git SHA 的源码归档，在 `~/portal-sources` 临时解压并执行 `pnpm install --frozen-lockfile` 和 `pnpm build`。旧 `~/app/dist` 移入 `~/app/backups`，再通过同文件系统重命名发布新目录；Nginx 校验失败时恢复旧目录。Portal 只保存可公开配置，例如腾讯地图 JS key 和 Cap site endpoint；不得保存 Cap secret。
 
 `/campus-map` 优先从公开接口 `GET /api/v1/portal/map/config` 运行时读取腾讯地图 JS Key，`VITE_TENCENT_MAP_KEY` 只作为构建期回退值。该接口不得返回腾讯地图 SK。
 

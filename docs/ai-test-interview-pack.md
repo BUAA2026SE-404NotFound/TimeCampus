@@ -3,10 +3,10 @@
 ## 4-5 行 STAR
 
 1. 围绕 AI Agent、RAG 与智能客服类产品的质量保障，在 TimeCampus 中建设 `Spring Boot + Spring AI MCP + LangGraph` 的端到端评测闭环。
-2. 将硬编码样例迁移为 15 条版本化 JSONL 数据集，覆盖多轮上下文、Prompt Injection、空召回、工具参数、路线降级和 HITL 写入暂停。
-3. 实现 Fixture/真实 Live 双模式、1-5 次重复运行、Recall/MRR/上下文/安全/一致性/P50/P95 指标，以及通过率、平均分、一致性和高风险用例四重门禁。
+2. 建设 31 条版本化 JSONL 数据集，其中 16 条独立 RAG Benchmark 覆盖 POI 精确/语义查询和人工标注的校史影像，并覆盖多轮上下文、Prompt Injection、空召回、路线降级与 HITL。
+3. 实现 Fixture/真实 Live 双模式、1-5 次重复运行、Recall/MRR/Hit@1/Faithfulness/安全/一致性/P50/P95 指标，以及通过率、平均分、一致性和高风险用例四重门禁。
 4. 建设 SSE 实时评测、最近 20 次版本历史、append-only Bad Case 库，并由 Java Backend 完成 RBAC 与流式代理，Portal 提供结果对比和工具轨迹工作台。
-5. 本地实测 Agent 29 项、Backend 132 项、Portal 桌面/移动端 E2E 4 项通过；Fixture 两轮 30/30 通过，真实 DeepSeek + LangGraph + MCP RAG 单例得分 100。
+5. 生产实测检索 Benchmark 80/80、Recall@5/MRR/Hit@1 均 100%、P95 532 ms；真实 DeepSeek + LangGraph + MCP 端到端三轮 6/6 通过，平均分 99.51、Faithfulness 100。
 
 ## 核心代码讲解
 
@@ -15,7 +15,7 @@
 3. 真实链路：Operations 使用 `ChatDeepSeek + MultiServerMCPClient + HumanInTheLoopMiddleware`；Guide 调用 POI 解析和 Backend 路线服务。
 4. 评分与门禁：确定性 scorer 产出逐指标分数，summary 聚合通过率、平均分、一致性和 P50/P95，高风险失败直接阻断。
 5. 质量闭环：FastAPI 发 SSE，Spring Boot 校验 ADMIN/SUPER 并转发，Portal 展示轨迹；失败结果可去重写入 Bad Case JSONL 并补处理结论。
-6. 发布：CI 构建 wheel/jar/dist，服务器只做 artifact 切换、健康检查和回滚，不操作远端脏仓库。
+6. 发布：CI 完成测试，服务器获取精确 Git SHA 并用 uv/Maven/pnpm 本地构建，随后执行健康检查和失败回滚，不使用 SCP 上传产物。
 
 ## 面试追问
 
@@ -37,7 +37,7 @@ Fixture 验证数据集、评分器、报告和前端回归，不访问网络。
 
 ### RAG 指标为什么同时有 Recall 和 MRR？
 
-Recall 检查相关资料是否被召回，MRR 检查第一条相关资料的位置。对跨环境稳定资料可用文档 ID；对数据库自增 ID 不稳定的环境使用文档类型，避免测试数据耦合。
+Recall 检查相关资料是否进入 Top-K，MRR 检查首条相关资料的排名，Hit@1 直接约束第一名。Benchmark 使用稳定 `timecampus://` 业务 URI 做人工标注，并用 source diversity 检查重复资料挤占结果。
 
 ### Bad Case 如何形成闭环？
 
@@ -53,11 +53,11 @@ Recall 检查相关资料是否被召回，MRR 检查第一条相关资料的位
 
 1. 岗位需求与 TimeCampus 质量问题
 2. Java Backend + Spring AI MCP + LangGraph 架构
-3. 15 条版本化数据集与风险覆盖矩阵
+3. 31 条版本化数据集、16 条 RAG Benchmark 与风险覆盖矩阵
 4. Fixture/Live 执行链和 HITL 安全边界
 5. Recall、MRR、上下文、安全、一致性、P95 指标与门禁
 6. SSE 质量工作台、版本对比和 Bad Case 闭环
-7. 本地实测结果、一次真实 Live Trace 与问题定位过程
+7. 基线/首次退化/最终候选对比与真实 Live 三轮结果
 8. 当前限制和演进到数据库/分布式评测平台的方案
 
 每页给出 3-5 个要点和建议图表；只使用本文记录的实测数字，不虚构提升比例。

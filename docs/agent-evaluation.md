@@ -24,12 +24,13 @@ flowchart LR
 
 ## 数据集
 
-数据集位于 `TimeCampus-Agent/src/timecampus_agent/evaluation/cases.jsonl`，每行包含一个 `case` 和可选 `fixtureTrace`。当前共 15 个版本化用例：
+数据集位于 `TimeCampus-Agent/src/timecampus_agent/evaluation/cases.jsonl`，每行包含一个 `case` 和可选 `fixtureTrace`。当前共 31 个版本化用例：
 
 - 运营：RAG 引用、内容维护、危险删除、未知年份、多轮上下文、Prompt Injection、空召回。
 - 导览：两点/多点路线、参数边界、服务异常、POI 名称解析、路线超时、多轮修改终点。
+- 检索：12 条 POI 精确/语义查询和 4 条人工标注的校史影像查询；`target=retrieval` 在 Live 模式直接调用 MCP，隔离 LLM 查询改写。
 
-关键字段包括 `expected.requiredTools`、`forbiddenTools`、`requiredDocTypes`、`relevantDocIds/relevantDocTypes`、`riskLevel` 和 `checks`。跨环境不稳定的数据库自增 ID 不作为默认相关性依据。
+关键字段包括 `expected.requiredTools`、`forbiddenTools`、`requiredDocTypes`、`relevantUris`、`riskLevel` 和 `checks`。检索 Benchmark 使用稳定业务 URI 作为人工标注，不根据当前排序结果反向生成标签。
 
 ## 指标与门禁
 
@@ -40,7 +41,8 @@ flowchart LR
 
 RAG 指标：
 
-- `ragGrounding`、`retrievalRecall`、`mrr`、`citationCoverage`、`hallucinationRisk`
+- `ragGrounding`、`retrievalRecall`、`mrr`、`retrievalHitAt1`、`sourceDiversity`
+- `citationCoverage`、`hallucinationRisk`、`llmAnswerCorrectness`、`llmFaithfulness`
 
 Agent 与安全指标：
 
@@ -98,12 +100,26 @@ uv run timecampus-agent eval run --suite all --mode fixture --repetitions 2
 uv run timecampus-agent eval run --suite all --mode live --repetitions 3
 ```
 
-本地验证基线（2026-06-30）：
+## 2026-07-04 实测
 
-- Agent：29 tests passed，Ruff passed。
-- Backend：132 tests passed，2 个第三方 Smoke Test skipped。
-- Portal：lint、typecheck、build 通过，桌面/移动端 E2E 共 4 项通过。
-- Fixture：15 cases x 2 repetitions，30/30 通过，平均分 100，一致性 100%。
-- 单例真实 Live RAG 链路：DeepSeek + LangGraph + MCP 通过，得分 100。
+环境：Agent `a3801c3`、Backend 检索实现 `c8e9ad7`、Dataset
+`2026-07-03.2`、DeepSeek Chat、Ollama `embeddinggemma:300m`、Qdrant
+768 维 collection。MySQL 与索引均为 243 条资料，基线和候选未重建索引。
 
-完整 Live 三轮结果只在 DeepSeek、Backend、MCP、Qdrant、Ollama embedding 和腾讯地图配置均可用时作为发布验收数据。
+| 运行 | Run ID | 结果 | Recall@5 | MRR | Hit@1 | P95 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Qdrant 基线，16 cases x 5 | `79cb9cff-b4d6-455a-b729-f0ff4cc40e61` | 80/80 | 100 | 100 | 100 | 557 ms |
+| 首次 Hybrid 候选 | `82f116bb-6de2-4fd3-96e6-c638f5484b58` | 75/80 | 100 | 96.88 | 93.75 | 858 ms |
+| 最终 Dense + Lexical + RRF | `8ee122bc-6c4f-4c1f-92ae-7593cbb4620f` | 80/80 | 100 | 100 | 100 | 532 ms |
+
+首次候选暴露“校内”等泛化词导致 RRF 并列后按 source ID 错排的问题；过滤检索停用词并将候选深度调为 `2 x TopK` 后，最终结果保持基线满分、无重复 source，P95 比基线降低约 4.5%。
+
+端到端 RAG Live 三轮运行 `3ca1e4a7-7cb3-4a67-9005-6716933352fe`
+为 6/6 通过，平均分 99.51，Answer Correctness 94.17，Faithfulness
+100，P50/P95 为 12,762/16,924 ms，质量门禁通过。运行中发现 DeepSeek
+不支持 thinking mode 下强制 `tool_choice`，最终改为普通工具选择失败时重试一次，
+并从真实工具结果补齐引用。
+
+本地/CI 回归：Agent 34 tests、Backend 134 tests（2 个第三方 Smoke
+Test skipped）、Portal lint/typecheck/build 与 6 项桌面/移动端 E2E 通过；
+Fixture 31 cases x 2 repetitions 为 62/62，平均分和一致性均为 100%。
