@@ -12,7 +12,7 @@ TimeCampus 根仓库是生产编排仓库，使用 Git submodule 管理三个子
 
 - `TimeCampus-Portal`：React 门户、公开校园地图、时光合影工作室和 Web 管理端。
 - `TimeCampus-Backend`：Spring Boot 多模块后端、REST API、MCP Server、RAG 和第三方服务封装。
-- `TimeCampus-Agent`：独立 Python/LangGraph CLI，用于后台运营维护、RAG 检索、草案生成和游客导引。
+- `TimeCampus-Agent`：独立纯 Python CLI，用于后台运营维护、RAG 检索、草案生成和游客导引。
 
 生产运行时由 Nginx 统一暴露 HTTPS，Nginx 提供门户/管理端静态资源、API 反向代理和 Cap 反向代理；Backend 以 jar + systemd 运行，访问 MySQL、Valkey、Qdrant、Ollama、Cap、腾讯地图、微信和 DeepSeek 等服务。根 Compose 只负责 Valkey、Cap、Qdrant、Ollama 等依赖服务。
 
@@ -45,7 +45,7 @@ flowchart LR
 | Backend | Java 21、Spring Boot 3.5.14、Spring AI 1.1.7、Spring MVC、MyBatis、Maven、Springdoc OpenAPI |
 | 数据与缓存 | MySQL 8、Valkey/Redis、Qdrant 1.14.1、本地/COS 挂载文件存储 |
 | AI/RAG | Spring AI MCP Server、Qdrant VectorStore、Ollama `embeddinggemma:300m`、可选智谱 embedding、DeepSeek Chat |
-| Agent | Python 3.12、uv、LangGraph、LangChain、FastAPI、Uvicorn、MCP Adapter、httpx、pydantic、pytest、ruff |
+| Agent | Python 3.12、uv、FastAPI、Uvicorn、httpx、pydantic、pytest、ruff |
 | 第三方服务 | 腾讯地图 JS API 和 WebService、微信小程序 code2Session、Cap CAPTCHA |
 
 ## 3. 仓库结构
@@ -189,9 +189,9 @@ mvn -pl timecampus-server -am spring-boot:run
 | --- | --- |
 | `config.py` | 从 `.env` 加载 API、管理员凭据、聊天模型和 MCP 配置 |
 | `backend.py` | Backend REST API typed client |
-| `tools.py` | LangChain 工具包装 |
+| `tools.py` | Python 工具包装 |
 | `mcp_client.py` | Backend MCP 工具加载 |
-| `agent.py` | LangGraph supervisor，分流运营智能体和游客导引智能体 |
+| `agent.py` | Python supervisor，分流运营智能体和游客导引智能体 |
 | `service.py` | FastAPI 内部鉴权、运营 session、SSE、HITL 与 Eval 接口 |
 | `memory.py` | JSONL 会话原子持久化和 `MEMORY.md` 长期运营约束 |
 | `cli.py` | `timecampus-agent` 命令入口 |

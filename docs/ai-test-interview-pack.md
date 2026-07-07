@@ -2,17 +2,17 @@
 
 ## 4-5 行 STAR
 
-1. 围绕 AI Agent、RAG 与智能客服类产品的质量保障，在 TimeCampus 中建设 `Spring Boot + Spring AI MCP + LangGraph` 的端到端评测闭环。
+1. 围绕 AI Agent、RAG 与智能客服类产品的质量保障，在 TimeCampus 中建设 `Spring Boot + Spring AI MCP + Python Agent` 的端到端评测闭环。
 2. 建设 31 条版本化 JSONL 数据集，其中 16 条独立 RAG Benchmark 覆盖 POI 精确/语义查询和人工标注的校史影像，并覆盖多轮上下文、Prompt Injection、空召回、路线降级与 HITL。
 3. 实现 Fixture/真实 Live 双模式、1-5 次重复运行、Recall/MRR/Hit@1/Faithfulness/安全/一致性/P50/P95 指标，以及通过率、平均分、一致性和高风险用例四重门禁。
 4. 建设 SSE 实时评测、最近 20 次版本历史、append-only Bad Case 库，并由 Java Backend 完成 RBAC 与流式代理，Portal 提供结果对比和工具轨迹工作台。
-5. 生产实测检索 Benchmark 80/80、Recall@5/MRR/Hit@1 均 100%、P95 532 ms；真实 DeepSeek + LangGraph + MCP 端到端三轮 6/6 通过，平均分 99.51、Faithfulness 100。
+5. 生产实测检索 Benchmark 80/80、Recall@5/MRR/Hit@1 均 100%、P95 532 ms；真实 DeepSeek + Python Agent + MCP 端到端三轮 6/6 通过，平均分 99.51、Faithfulness 100。
 
 ## 核心代码讲解
 
 1. 数据入口：`evaluation/cases.jsonl` 定义输入、期望工具、风险等级、指标与 Fixture Trace。
 2. 执行入口：`EvalRunner` 根据 mode 调用 Fixture 或真实 Operations/Guide Agent，并对每个 case 重复 1-5 次。
-3. 真实链路：Operations 使用 `ChatDeepSeek + MultiServerMCPClient + HumanInTheLoopMiddleware`；Guide 调用 POI 解析和 Backend 路线服务。
+3. 真实链路：Operations 使用 `httpx ChatClient + MCP JSON-RPC client + Python HITL`；Guide 调用 POI 解析和 Backend 路线服务。
 4. 评分与门禁：确定性 scorer 产出逐指标分数，summary 聚合通过率、平均分、一致性和 P50/P95，高风险失败直接阻断。
 5. 质量闭环：FastAPI 发 SSE，Spring Boot 校验 ADMIN/SUPER 并转发，Portal 展示轨迹；失败结果可去重写入 Bad Case JSONL 并补处理结论。
 6. 发布：CI 完成测试，服务器获取精确 Git SHA 并用 uv/Maven/pnpm 本地构建，随后执行健康检查和失败回滚，不使用 SCP 上传产物。
@@ -21,7 +21,7 @@
 
 ### 为什么不直接引入 DeepEval 或 Promptfoo？
 
-项目需要同时表达 LangGraph HITL、Spring AI MCP 参数、路线结构和现有管理员权限。完整平台会引入额外运行时和数据模型；这里借鉴指标与回归方法，用小型确定性 scorer 保持 CI 可复现。后续可导出统一 trace 接入外部平台。
+项目需要同时表达 Python HITL、Spring AI MCP 参数、路线结构和现有管理员权限。完整平台会引入额外运行时和数据模型；这里借鉴指标与回归方法，用小型确定性 scorer 保持 CI 可复现。后续可导出统一 trace 接入外部平台。
 
 ### Fixture 和 Live 的边界是什么？
 
@@ -45,14 +45,14 @@ Recall 检查相关资料是否进入 Top-K，MRR 检查首条相关资料的排
 
 ### 系统目前的限制是什么？
 
-文件存储适合单实例和面试项目，不支持多 Agent 实例并发共享；HITL checkpoint 使用内存，重启后未完成审批失效；当前确定性指标不能完全替代人工语义评审。
+文件存储适合单实例和面试项目，不支持多 Agent 实例并发共享；HITL 状态使用本地 JSON 文件，跨机器不共享；当前确定性指标不能完全替代人工语义评审。
 
 ## PPT 提示词
 
 请生成 8 页中文技术面试 PPT，风格为数据密集型工程评审，不使用营销式大标题：
 
 1. 岗位需求与 TimeCampus 质量问题
-2. Java Backend + Spring AI MCP + LangGraph 架构
+2. Java Backend + Spring AI MCP + Python Agent 架构
 3. 31 条版本化数据集、16 条 RAG Benchmark 与风险覆盖矩阵
 4. Fixture/Live 执行链和 HITL 安全边界
 5. Recall、MRR、上下文、安全、一致性、P95 指标与门禁

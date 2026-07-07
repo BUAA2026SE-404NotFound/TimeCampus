@@ -11,7 +11,7 @@ flowchart LR
     Agent --> Dataset["cases.jsonl\n版本化数据集"]
     Agent --> Runner["EvalRunner"]
     Runner --> Fixture["Fixture Trace"]
-    Runner --> Live["DeepSeek + LangGraph"]
+    Runner --> Live["DeepSeek + Python Agent"]
     Live --> MCP["Spring AI MCP\nRAG / POI"]
     Live --> Route["腾讯路线服务"]
     Runner --> Scorers["确定性 Scorers"]
@@ -20,7 +20,7 @@ flowchart LR
     Gate --> BadCases["append-only Bad Cases JSONL"]
 ```
 
-`fixture` 不访问网络，用于 CI 和稳定回归。`live` 会真实运行 DeepSeek、LangGraph、Backend MCP 与路线工具；异常用例通过故障注入验证降级，不把 Fixture 当作 Live 结果。写操作只验证 LangGraph HITL 暂停，不自动批准。
+`fixture` 不访问网络，用于 CI 和稳定回归。`live` 会真实运行 DeepSeek、Python Agent、Backend MCP 与路线工具；异常用例通过故障注入验证降级，不把 Fixture 当作 Live 结果。写操作只验证 Python HITL 暂停，不自动批准。
 
 ## 数据集
 

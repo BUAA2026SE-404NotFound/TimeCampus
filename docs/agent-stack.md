@@ -7,7 +7,7 @@
 - Backend MCP Server：`/mcp`，通过 Spring AI 暴露 Tools、Resources、Prompts，给外部 Agent 维护 POI、影像、审核状态和展示文案。
 - Backend RAG：从 MySQL 的 `poi`、`media`、`comment` 和内置维护规范构建语料；优先走 Qdrant，缺少向量配置时回退词法检索。
 - 管理端 Agent HTTP API：`/api/v1/admin/agent/**`，提供 RAG、草案、运营执行审批和 Eval 代理。
-- TimeCampus-Agent：独立 Python/LangGraph 工作区，提供 CLI 和仅供 Backend 调用的内部 FastAPI 服务。
+- TimeCampus-Agent：独立纯 Python 工作区，提供 CLI 和仅供 Backend 调用的内部 FastAPI 服务。
 - 运营会话：Agent 使用 `sessions/*.jsonl` 保存多轮消息，使用 `MEMORY.md` 注入人工维护的长期约束；Portal 通过 Backend SSE 选择 session 并续聊。
 - 游客导览 API：`/api/v1/map/walking-route`，根据 2-8 个点位返回步行摘要与可绘制 `path`。
 
@@ -129,7 +129,7 @@ uv run timecampus-agent mcp-tools
 uv run timecampus-agent route "主楼,39.981,116.34;图书馆,39.982,116.341"
 ```
 
-Agent 状态图见 [TimeCampus-Agent/docs/langgraph-agent.md](../TimeCampus-Agent/docs/langgraph-agent.md)。
+Agent 架构见 [TimeCampus-Agent/docs/python-agent.md](../TimeCampus-Agent/docs/python-agent.md)。
 
 ## API Smoke
 

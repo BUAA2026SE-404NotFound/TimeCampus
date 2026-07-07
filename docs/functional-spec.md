@@ -151,7 +151,7 @@ Agent 能力服务内容维护、检索、草案生成和游客导览。
 
 功能要求：
 
-- `TimeCampus-Agent` CLI 提供 `rag-search`、`draft`、`ask`、`route`、`mcp-tools` 命令；`ask` 使用 LangGraph supervisor 自动分流运营智能体和游客导引智能体。
+- `TimeCampus-Agent` CLI 提供 `rag-search`、`draft`、`ask`、`route`、`mcp-tools` 命令；`ask` 使用 Python supervisor 自动分流运营智能体和游客导引智能体。
 - Backend 暴露 `/mcp` Streamable HTTP MCP Server，提供 POI、影像、RAG 和文案维护相关 Tools、Resources、Prompts。
 - Backend 管理端 Agent API 提供 RAG、草案、向量索引、运营执行审批和 Eval 代理。
 - Portal 管理端提供运营智能体和 Agent Eval 页面；运营智能体支持创建、选择本地持久 session 并在同一上下文中多轮完成任务。

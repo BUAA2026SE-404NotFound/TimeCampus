@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | Portal | [TimeCampus-Portal/README.md](../TimeCampus-Portal/README.md) | React 门户首页、公开校园地图、Web 管理端 |
 | Backend | [TimeCampus-Backend/README.md](../TimeCampus-Backend/README.md) | Spring Boot API、数据访问、鉴权、MCP/RAG、第三方服务封装 |
-| Agent | [TimeCampus-Agent/README.md](../TimeCampus-Agent/README.md) | LangChain 运维与导览 CLI、Backend API/MCP 调用 |
+| Agent | [TimeCampus-Agent/README.md](../TimeCampus-Agent/README.md) | 纯 Python 运维与导览 CLI、Backend API/MCP 调用 |
 
 ## Backend 专项文档
 

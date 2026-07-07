@@ -8,7 +8,7 @@ TimeCampus 是面向校园历史影像浏览、点位共创和运营维护的系
 | --- | --- | --- |
 | `TimeCampus-Portal` | React 门户首页、公开校园地图、Web 管理端 | [README](TimeCampus-Portal/README.md) |
 | `TimeCampus-Backend` | Spring Boot REST API、数据访问、鉴权、MCP/RAG、第三方服务封装 | [README](TimeCampus-Backend/README.md) |
-| `TimeCampus-Agent` | LangChain 运维与导览 CLI，调用 Backend API/MCP | [README](TimeCampus-Agent/README.md) |
+| `TimeCampus-Agent` | 纯 Python 运维与导览 CLI，调用 Backend API/MCP | [README](TimeCampus-Agent/README.md) |
 | 根仓库 | Docker Compose 依赖服务、生产环境样例、跨模块规格文档 | [docs](docs/README.md) |
 
 ## 依赖服务
