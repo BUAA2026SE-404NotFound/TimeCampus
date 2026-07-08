@@ -9,7 +9,6 @@ TimeCampus 是面向校园历史影像浏览、点位共创和运营维护的系
 | `TimeCampus-Portal` | React 门户首页、公开校园地图、Web 管理端 | [README](TimeCampus-Portal/README.md) |
 | `TimeCampus-Backend` | Spring Boot REST API、数据访问、鉴权、MCP/RAG、第三方服务封装 | [README](TimeCampus-Backend/README.md) |
 | `TimeCampus-Agent` | 纯 Python 运维与导览 CLI，调用 Backend API/MCP | [README](TimeCampus-Agent/README.md) |
-| 根仓库 | Docker Compose 依赖服务、生产环境样例、跨模块规格文档 | [docs](docs/README.md) |
 
 ## 依赖服务
 
@@ -65,15 +64,3 @@ uv run timecampus-agent eval run --suite all --mode fixture --report-dir eval-re
 ```bash
 uv run --with pyyaml python -m unittest discover -s tests
 ```
-
-## 文档入口
-
-- [文档索引](docs/README.md)
-- [功能规格说明书](docs/functional-spec.md)
-- [技术规格说明书](docs/technical-spec.md)
-- [文档维护指南](docs/documentation-maintenance.md)
-- [Agent Stack 联调说明](docs/agent-stack.md)
-- [Agent 评估框架](docs/agent-evaluation.md)
-- [AI 产品测试工程面试材料](docs/ai-test-interview-pack.md)
-
-README 只作为入口；跨模块功能规则写入 [功能规格说明书](docs/functional-spec.md)，架构、接口、数据和部署规则写入 [技术规格说明书](docs/technical-spec.md)。
