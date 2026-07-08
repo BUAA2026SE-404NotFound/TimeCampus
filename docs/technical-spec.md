@@ -166,7 +166,7 @@ config/                 # Web、OpenAPI、Cap、Storage、腾讯地图等配置
 - `LocalStorageService`/`MediaFileService` 校验文件路径必须位于 `storage.local-root-dir` 下。
 - 用户端媒体 URL 使用短期 accessToken，默认 TTL 600 秒。
 - 腾讯地图 SK 存在时使用签名请求；签名逻辑由 `TencentMapSignature` 覆盖测试。
-- RAG 在生产并行执行 Qdrant Dense 与中文词法检索，按 source ID 去重后使用 RRF 融合；任一检索器异常或空结果时自动退化为另一条链路。
+- RAG 在生产并行执行 Qdrant Dense 与中文 BM25 词法检索，按 source ID 去重后使用 RRF 融合；任一检索器异常或空结果时自动退化为另一条链路。
 
 质量命令：
 
